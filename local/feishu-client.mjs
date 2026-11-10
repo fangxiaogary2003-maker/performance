@@ -1,0 +1,28 @@
+import {AppError,ensure} from '../lib/errors.mjs';
+export const FEISHU_SCOPES=[
+ ['contact:contact.base:readonly','获取通讯录基本信息'],['contact:user.base:readonly','获取用户基本信息'],
+ ['contact:user.department:readonly','获取用户组织架构信息（直属上级）'],['contact:department.base:readonly','获取部门基础信息'],
+ ['contact:user.employee:readonly','获取用户受雇信息（岗位、在离职状态）'],['im:message:send_as_bot','以应用的身份发消息']
+];
+export class FeishuError extends AppError{constructor(code,http=400){super('飞书接口未就绪，错误码：'+code,502);this.code=String(code);this.http=http;this.retryable=(http===429&&Number(code)!==99991403)||http>=500||code==='NETWORK';}}
+export const directoryActive=u=>!u.status?.is_resigned&&!u.status?.is_frozen&&!u.status?.is_exited&&!u.status?.is_unjoin;
+export function feishuClient({appId,appSecret,transport=fetch,clock=()=>Date.now()}={}){
+ let cache=null,inflight=null;
+ async function json(url,options){let response,data;try{response=await transport(url,{...options,redirect:'error',signal:AbortSignal.timeout(15000)});data=await response.json();}catch{throw new FeishuError('NETWORK',503);}if(!response.ok||data.code!==0)throw new FeishuError(data.code??response.status,response.status);return data;}
+ async function token(force=false){if(force)cache=null;if(cache&&cache.expires>clock())return cache;if(inflight)return inflight;
+  inflight=(async()=>{ensure(appId&&appSecret,'服务器尚未配置飞书应用凭证',409);const data=await json('https://accounts.feishu.cn/oauth/v3/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grant_type:'client_credentials',client_id:appId,client_secret:appSecret})});ensure(data.access_token,'飞书未返回应用访问凭证',502);cache={value:data.access_token,scopes:(data.scope||'').split(' ').filter(Boolean),expires:clock()+Math.max(10,Number(data.expires_in||7200)-120)*1000};return cache;})();try{return await inflight;}finally{inflight=null;}
+ }
+ function permits(granted,scope){if(granted.includes(scope))return true;if(scope.startsWith('contact:'))return granted.some(x=>['contact:contact:readonly','contact:contact:readonly_as_app','contact:contact:access_as_app'].includes(x));return scope==='im:message:send_as_bot'&&granted.includes('im:message');}
+ async function requireScopes(scopes){const t=await token();ensure(scopes.every(s=>permits(t.scopes,s)),'请管理员开通飞书应用通讯录／消息权限，再刷新接入检查。已保存的填报内容不受影响。',409);return t;}
+ async function request(path,body){const t=await token();const data=await json('https://open.feishu.cn/open-apis'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+t.value,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});return data;}
+ async function user(openId){ensure(/^ou_[A-Za-z0-9_-]+$/.test(openId||''),'员工飞书身份未绑定',409);await requireScopes(['contact:contact.base:readonly','contact:user.base:readonly','contact:user.department:readonly']);const result=await request('/contact/v3/users/'+encodeURIComponent(openId)+'?user_id_type=open_id&department_id_type=open_department_id');const u=result.data?.user;ensure(u&&u.open_id===openId,'飞书通讯录返回的身份不匹配',409);return u;}
+ async function pages(path,query={}){const items=[];let pageToken='',seen=new Set();for(let i=0;i<500;i++){const q=new URLSearchParams({...query,page_size:'50',...(pageToken?{page_token:pageToken}:{})}),r=await request(path+'?'+q);items.push(...(r.data?.items||[]));if(!r.data?.has_more)return items;pageToken=r.data.page_token;ensure(pageToken&&!seen.has(pageToken),'飞书通讯录分页异常',502);seen.add(pageToken);}throw new AppError('飞书通讯录返回的数据过多，请缩小同步范围',409);}
+ async function directory(){await requireScopes(FEISHU_SCOPES.filter(([s])=>s.startsWith('contact:')).map(([s])=>s));const departments=await pages('/contact/v3/departments/0/children',{fetch_child:'true',department_id_type:'open_department_id',user_id_type:'open_id'});ensure(departments.length<=1000,'部门数量超过试点支持范围');const users=new Map();for(const dep of [{open_department_id:'0',name:'公司'},...departments]){for(const u of await pages('/contact/v3/users/find_by_department',{department_id:dep.open_department_id,department_id_type:'open_department_id',user_id_type:'open_id'})){ensure(u.open_id&&u.name,'飞书通讯录缺少姓名或身份，请核对权限',409);users.set(u.open_id,u);ensure(users.size<=10000,'员工数量超过试点支持范围');}}return {departments,users:[...users.values()]};}
+ async function diagnose(openId){const t=await token(true),missing=FEISHU_SCOPES.filter(([s])=>!permits(t.scopes,s)).map(([scope,name])=>({scope,name}));let bot=false,botCode=null,person=null,personCode=null;
+  try{const r=await request('/bot/v3/info/');bot=!!(r.bot||r.data?.bot);}catch(e){botCode=e.code||'ERROR';}
+  if(openId&&!missing.some(x=>['contact:contact.base:readonly','contact:user.department:readonly','contact:user.base:readonly'].includes(x.scope)))try{const u=await user(openId);person={name:u.name,hasLeader:!!u.leader_user_id};}catch(e){personCode=e.code||'CONTACT_SCOPE';}
+  return {checkedAt:new Date(clock()).toISOString(),missing,botEnabled:bot,botCode,person,personCode,ready:bot&&!missing.length};
+ }
+ async function send(openId,card,uuid){ensure(/^ou_[A-Za-z0-9_-]+$/.test(openId||''),'收件人飞书身份无效',409);await requireScopes(['im:message:send_as_bot']);const r=await request('/im/v1/messages?receive_id_type=open_id',{receive_id:openId,msg_type:'interactive',content:JSON.stringify(card),uuid});ensure(r.data?.message_id,'飞书未确认消息编号',502);return r.data.message_id;}
+ return {user,directory,diagnose,send};
+}

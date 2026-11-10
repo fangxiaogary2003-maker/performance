@@ -1,29 +1,27 @@
 'use client';
 import React,{useState,useEffect} from 'react';
 import {appPath} from '../lib/app-path.mjs';
-const labels:any={sent:'已发送',sending:'发送中',rejected:'飞书拒绝',unknown:'结果待核对'};
-export function ReminderSettings({data}:any){
- const [state,S]=useState<any>(null),[f,F]=useState<any>({}),[busy,B]=useState(false),[message,M]=useState('');
+const statusLabel:any={sent:'已发送',queued:'待发送',sending:'发送中',retry:'自动重试中',blocked:'待开通／身份待核对',unknown:'结果待核对',cancelled:'待办已变化，取消发送'};
+const kindLabel:any={manager_submission:'员工提交后通知上级',task_review:'跨部门待验收',task_returned:'任务退回',assessment_returned:'整月退回',monthly:'月初提醒',test:'测试卡片'};
+export function ReminderSettings({data,onRefresh}:any){
+ const [state,S]=useState<any>(null),[f,F]=useState<any>({}),[preview,P]=useState<any>(null),[busy,B]=useState(false),[message,M]=useState('');
  const headers={'Content-Type':'application/json','x-demo-user':data.user.id};
- async function load(){try{const r=await fetch(appPath('/api/notifications'),{headers,cache:'no-store'}),x=await r.json();if(!r.ok)throw Error(x.error);S(x);F({...x.config,webhook:'',signSecret:'',clearSigningSecret:false});}catch(e:any){M(e.message);}}
+ async function load(){try{const r=await fetch(appPath('/api/app-messaging'),{headers,cache:'no-store'}),x=await r.json();if(!r.ok)throw Error(x.error);S(x);F({...x.config});}catch(e:any){M(e.message);}}
  useEffect(()=>{load();},[data.user.id]);
- const set=(k:string,v:any)=>F((x:any)=>({...x,[k]:v}));
- async function action(action:string,body:any={}){B(true);M('');try{const r=await fetch(appPath('/api/notifications/'+action),{method:'POST',headers,body:JSON.stringify({...body,revision:data.revision})}),x=await r.json();if(!r.ok)throw Error(x.error);await load();M(action==='save'?'提醒设置已保存':action==='test'?'测试卡片已发送到配置的群':'当天提醒已重发');}catch(e:any){M(e.message);if(action!=='save')await load();}finally{B(false);}}
- return <section className="panel reminder-settings"><div className="panel-heading"><h3>飞书全员群提醒</h3><span className={'badge '+(state?.config.enabled?'accepted':'planned')}>{state?.config.enabled?'已启用':'待配置／已停用'}</span></div><div className="setting-bottom">
- <p>每月前5个工作日，依次提醒员工填报、员工补齐、上级评分、HRBP及跨部门评价、全流程核对。按公司工作日历计算，不限于自然月的1—7日。</p>
- {state?.demo&&<p className="notice-inline">演示环境只预览和保存设置，不向真实群发送消息。</p>}
- {state?.configurationError&&<p className="notice-inline">{state.configurationError}</p>}
- {message&&<p role="status" className="notice-inline">{message}</p>}
- {state&&<><form onSubmit={e=>{e.preventDefault();action('save',{...f,configRevision:state.config.revision});}}>
- <label className="field">接收提醒的全员群名称<input required value={f.groupName||''} onChange={e=>set('groupName',e.target.value)} placeholder="例如：公司全员群"/></label>
- <label className="field">群自定义机器人 Webhook<input type="password" autoComplete="off" value={f.webhook||''} onChange={e=>set('webhook',e.target.value)} placeholder={state.config.configured?'已保存，留空保持原值':'从全员群的自定义机器人设置中复制'}/><small>地址仅保存在服务器，保存后不回显。请核对机器人所在群。</small></label>
- <label className="field">机器人签名密钥（启用签名校验时填写）<input type="password" autoComplete="new-password" value={f.signSecret||''} onChange={e=>set('signSecret',e.target.value)} placeholder={state.config.signatureConfigured?'已保存，留空保持原值':'机器人安全设置中的签名密钥'}/></label>
- {state.config.signatureConfigured&&<label className="check-label"><input type="checkbox" checked={!!f.clearSigningSecret} onChange={e=>set('clearSigningSecret',e.target.checked)}/>清除旧签名密钥（仅机器人已关闭签名校验时）</label>}
- <label className="field">每天推送时间（北京时间）<select value={f.hour??9} onChange={e=>set('hour',Number(e.target.value))}>{[7,8,9,10,11,12].map(h=><option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}</select></label>
- <label className="check-label"><input type="checkbox" checked={!!f.atAll} onChange={e=>set('atAll',e.target.checked)}/>正式提醒时 @所有人（需群允许机器人使用）</label>
- <label className="check-label"><input type="checkbox" checked={!!f.enabled} onChange={e=>set('enabled',e.target.checked)}/>启用每月定时推送</label>
- <div className="button-row"><button className="primary" disabled={busy}>保存提醒设置</button><button type="button" disabled={busy||!state.config.configured||state.demo} onClick={()=>action('test')}>向已配置群发送测试卡片</button><button type="button" disabled={busy} onClick={load}>刷新状态</button></div></form>
- <p className="subtle">测试会发送到“{state.config.groupName||'尚未配置'}”，不会@所有人。程序会记录发送结果；网络结果不确定时需核对群消息后再手动重发。</p>
- <details><summary>本月推送安排与记录</summary>{state.plan.schedule.map((x:any)=><div className="setting-row" key={x.date}><div><b>{x.date} {String(x.hour).padStart(2,'0')}:00</b><p>第{x.day}个工作日 · {x.title}</p></div></div>)}{!state.delivery.length&&<p>尚无发送记录。</p>}{state.delivery.map((x:any)=><div className="setting-row" key={x.id}><div><b>{x.date} · {x.stage==='test'?'测试卡片':'第'+x.stage+'个工作日'}</b><p>{labels[x.status]||x.status}{x.error_code?' · 错误码 '+x.error_code:''}</p></div>{['rejected','unknown'].includes(x.status)&&x.stage!=='test'&&x.date===state.plan.date&&<button disabled={busy} onClick={()=>{if(x.status==='unknown'&&!window.confirm('请先检查全员群消息。确定这条提醒尚未收到，要重新发送吗？'))return;action('retry',{id:x.id,confirmedNotReceived:x.status==='unknown'});}}>{x.status==='unknown'?'确认未收到并重发':'重试当天提醒'}</button>}</div>)}</details></>}
+ async function action(name:string,body:any={}){B(true);M('');try{const r=await fetch(appPath('/api/app-messaging/'+name),{method:'POST',headers,body:JSON.stringify({...body,revision:data.revision})}),x=await r.json();if(!r.ok)throw Error(x.error);
+  if(x.preview)P(x.preview);if(name==='apply-directory')await onRefresh?.();await load();M(name==='check'?'接入检查已更新':name==='test'?(x.receipt?.status==='sent'?'测试卡片已发送到你的飞书':'测试消息状态：'+(statusLabel[x.receipt?.status]||'待处理')):name==='apply-directory'?`已同步 ${x.counts.total} 人，工作区已更新。`:name==='preview-directory'?`已读取 ${x.preview.count} 人，请核对下方名单和范围。`:'设置已保存');
+ }catch(e:any){M(e.message);}finally{B(false);}}
+ return <section className="panel reminder-settings"><div className="panel-heading"><h3>飞书自建应用与个人待办</h3><span className={'badge '+(state?.connection?.ready?'accepted':'planned')}>{state?.connection?.ready?'接入检查通过':'待开通／待检查'}</span></div><div className="setting-bottom">
+ <p>员工提交整月绩效后，从飞书通讯录核对直属上级并发送个人评分卡片。跨部门任务通知 HRBP 指定的人员；月初按公司工作日历向对应员工和评分人推送待办。</p>
+ <p className="subtle">应用 ID：{state?.appId||'—'} · 使用服务器已有应用凭证。</p>
+ {state?.demo&&<p className="notice-inline">演示环境不读取真实通讯录、不发送真实消息。</p>}{message&&<p role="status" className="notice-inline">{message}</p>}
+ {state&&<><div className="button-row"><button disabled={busy||state.demo} onClick={()=>action('check')}>检查应用权限与机器人</button><button disabled={busy||state.demo} onClick={()=>action('test')}>发送测试卡片给我</button><button disabled={busy} onClick={load}>刷新接入状态</button></div>
+ <details open={!state.connection?.ready}><summary>需要开通的应用能力与权限</summary><p>在飞书自建应用中开启机器人能力，发布应用版本，将应用可用范围和通讯录可读范围设置为实际考核员工及其直属上级。</p>
+ {state.connection&&<p>机器人：{state.connection.botEnabled?'已开启':'尚未开启／不可用'}{state.connection.botCode?'（'+state.connection.botCode+'）':''} · 检查时间：{new Date(state.connection.checkedAt).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}</p>}
+ <div className="table-scroll"><table className="people-table"><thead><tr><th>权限</th><th>用途</th><th>检查结果</th></tr></thead><tbody>{state.requiredScopes.map((x:any)=><tr key={x.scope}><td><code>{x.scope}</code></td><td>{x.name}</td><td>{!state.connection?'尚未检查':state.connection.missing.some((m:any)=>m.scope===x.scope)?'待开通':'已具备'}</td></tr>)}</tbody></table></div></details>
+ <form onSubmit={e=>{e.preventDefault();action('save',{...f,configRevision:state.config.revision});}}><label className="field">月初推送时间（北京时间）<select value={f.hour??9} onChange={e=>F({...f,hour:Number(e.target.value)})}>{[7,8,9,10,11,12].map(h=><option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}</select></label><label className="check-label"><input type="checkbox" checked={!!f.workflowEnabled} onChange={e=>F({...f,workflowEnabled:e.target.checked})}/>提交、验收与退回后发送个人待办</label><label className="check-label"><input type="checkbox" checked={!!f.monthlyEnabled} onChange={e=>F({...f,monthlyEnabled:e.target.checked})}/>每月前5个工作日向对应人员催办</label><div className="button-row"><button className="primary" disabled={busy}>保存推送设置</button></div></form>
+ <details><summary>从飞书读取员工与直属上级</summary><p>同步姓名、部门、岗位、直属上级及在职状态。HRBP／HRD关系在人员管理中配置。先核对可读范围和人数，再应用到系统；已发生提交或评分的考核负责人变化会交由管理员核对。</p><button disabled={busy||state.demo} onClick={()=>action('preview-directory')}>读取通讯录并预览</button>
+ {preview&&<><p>共 {preview.count} 人，其中有效员工 {preview.activeCount} 人。</p><div className="table-scroll"><table className="people-table"><thead><tr><th>姓名</th><th>部门／岗位</th><th>直属上级</th><th>状态</th></tr></thead><tbody>{preview.people.map((p:any,i:number)=><tr key={i}><td>{p.name}</td><td>{p.dept}／{p.position||'—'}</td><td>{p.manager}</td><td>{p.active?'在职可用':'停用／离职'}</td></tr>)}</tbody></table></div><button className="primary" disabled={busy} onClick={()=>action('apply-directory',{previewId:preview.id})}>应用已核对的通讯录名单</button></>}
+ </details><details><summary>发送记录与重试</summary>{!state.delivery.length&&<p>尚无消息发送记录。</p>}{state.delivery.map((x:any)=><div className="setting-row" key={x.id}><div><b>{x.recipient_name} · {kindLabel[x.kind]||'绩效待办'}</b><p>{statusLabel[x.status]||x.status}{x.error_code?' · '+x.error_code:''}</p></div>{['blocked','unknown'].includes(x.status)&&<button disabled={busy} onClick={()=>{if(x.status==='unknown'&&!window.confirm('请先核对收件人的飞书消息，确认尚未收到后再重发。'))return;action('retry',{id:x.id,confirmedNotReceived:x.status==='unknown'});}}>核对后重试</button>}</div>)}</details></>}
  </div></section>;
 }

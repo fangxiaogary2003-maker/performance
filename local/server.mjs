@@ -5,7 +5,8 @@ import {resolve,dirname,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {Readable} from 'node:stream';
 import {adapters} from './adapter.mjs';
-import {groupReminders} from './group-reminders.mjs';
+import {feishuClient} from './feishu-client.mjs';
+import {applicationMessaging} from './application-messaging.mjs';
 import {api,readStore,writeStore,mutate,actorFor,monthNow} from '../lib/performance.mjs';
 import {publicConfig,internalPath,safeReturnTo} from '../lib/app-path.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -15,7 +16,7 @@ const {origin,basePath,base}=publicConfig(process.env.APP_BASE_URL||`http://127.
 if(!demo&&(!base.startsWith('https://')||!process.env.FEISHU_APP_ID||!process.env.FEISHU_APP_SECRET))throw Error('Production requires HTTPS APP_BASE_URL, FEISHU_APP_ID and FEISHU_APP_SECRET. Use DEMO_MODE=true for a loopback-only demo.');
 if(demo&&!['127.0.0.1','::1','localhost'].includes(host))throw Error('Demo server must bind to loopback.');
 const env=await adapters(process.env.DATA_DIR||join(root,'data'));
-env.REMINDERS=groupReminders(env.sql,{keySecret:process.env.FEISHU_APP_SECRET||(demo?'local-demo-only':''),base,demo});
+env.APP_MESSAGING=applicationMessaging(env.sql,{env,client:feishuClient({appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET}),appId:process.env.FEISHU_APP_ID||'演示应用',base,demo});
 const rand=()=>randomBytes(32).toString('base64url'),hash=s=>createHash('sha256').update(s).digest('hex');
 const cookies=req=>Object.fromEntries((req.headers.cookie||'').split(';').filter(x=>x.includes('=')).map(x=>{const i=x.indexOf('=');return[x.slice(0,i).trim(),x.slice(i+1)];}));
 const cookie=(name,value,seconds)=>`${name}=${value}; Path=${basePath||'/'}; HttpOnly; SameSite=Lax; Max-Age=${seconds}${demo?'':'; Secure'}`;
@@ -64,6 +65,6 @@ const server=http.createServer(async(req,res)=>{
 server.requestTimeout=30000;server.headersTimeout=15000;
 server.listen(port,host,()=>{console.log(`绩效工作台 Local: http://${host}:${port} (${demo?'虚构数据演示':'生产飞书登录'})`);});
 let reminding=false;
-async function remind(){if(demo||reminding)return;reminding=true;try{const {state}=await readStore(env.DB,'company',false);await env.REMINDERS.tick(state.calendar);}catch(e){console.error('Reminder scheduler:',e.message);}finally{reminding=false;}}
+async function remind(){if(demo||reminding)return;reminding=true;try{const {state}=await readStore(env.DB,'company',false);await env.APP_MESSAGING.flush('company');}catch(e){console.error('Reminder scheduler:',e.message);}finally{reminding=false;}}
 const timer=setInterval(()=>{tick();remind();},60000);timer.unref();await tick();await remind();
 for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>{clearInterval(timer);server.close(()=>{env.sql.close();process.exit(0);});});
