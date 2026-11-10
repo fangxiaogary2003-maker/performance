@@ -1,0 +1,12 @@
+services:
+  performance:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      DATA_DIR: /data
+    ports:
+      - "127.0.0.1:4310:4310"
+    volumes:
+      - ./data:/data

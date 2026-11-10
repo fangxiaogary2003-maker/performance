@@ -1,0 +1,47 @@
+飞书绩效应用创建说明
+
+先由 IT 为绩效系统选定实际地址，下文以 https://performance.example.com 为占位示例，不要原样用于真实配置。
+
+1. 进入飞书开放平台 https://open.feishu.cn/app ，创建“企业自建应用”。
+   建议名称：绩效工作台。图标和应用描述可按公司规范设置。
+
+2. 添加网页应用能力。
+   桌面端首页：https://你的实际域名/
+   移动端首页：https://你的实际域名/
+   首页由公司服务器提供。不要将私有试点的 ChatGPT Sites 地址作为公司正式业务后台。
+
+3. 在应用安全设置中配置 OAuth 重定向地址。
+   精确填写：https://你的实际域名/auth/callback
+   协议、域名、路径及末尾斜杠须与服务器 APP_BASE_URL 拼接结果一致。
+   系统登录入口：https://你的实际域名/auth/login
+
+4. 登录权限。
+   本版只使用获取用户身份的接口，授权 scope 默认 contact:user.base:readonly。请在飞书应用权限管理中核对并开通对应用户基本信息权限，发布版本后生效。
+   当前实现不调用多维表格、审批、云文档、个人消息和自动组织同步接口，无需为这些功能申请权限。
+   飞书后台权限名称可能随版本变化，以创建时后台及下方官方接口页所列要求为准；真实租户尚未联调。
+
+5. 在“凭证与基础信息”取得 App ID 和 App Secret。
+   由 IT 在公司服务器 .env 中配置：
+     FEISHU_APP_ID=实际 App ID
+     FEISHU_APP_SECRET=实际 App Secret
+     APP_BASE_URL=https://你的实际域名
+     DEMO_MODE=false
+   App Secret 不写进网页代码、不发到聊天里、不放进代码仓库。
+
+6. 导入人员及关系。
+   按 people.example.json 提供完整名单，包括员工 ID、姓名、部门、直属上级 ID、HRBP ID、角色，以及当前自建应用作用域内的 open_id。
+   初始名单必须包含一名 active=true 且 roles 包含 admin 的管理员；HRBP 的 roles 应包含 hrbp。
+   普通员工 roles=[]；主管 roles=["manager"]；HRBP 可兼管理员 roles=["hrbp","admin"]。
+   员工自己也是验收人时不需额外角色，系统按每项任务的分派关系赋权。
+   不按昵称、邮箱或手机号自动匹配身份，未绑定 Open ID 的账号登录后不会获得绩效访问权限。
+   IT 可使用同一应用的官方调试工具确认试点人员 Open ID；该操作不在本版自动调用范围内。
+
+7. 创建版本、设置试点人员可用范围，按企业管理员流程发布应用，并添加至飞书工作台。
+   在实际服务器上测试：登录成功、同一身份会话、员工隔离、主管/HRBP 范围、直接访问其他任务地址被拒绝、退回后重提和档案导出。
+
+官方接口参考（2026-11-10 查阅）：
+获取授权码：https://open.feishu.cn/document/authentication-management/access-token/obtain-oauth-code
+获取 user_access_token：https://open.feishu.cn/document/authentication-management/access-token/get-user-access-token
+获取登录用户信息：https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/authen-v1/user_info/get
+
+建好应用后，继续联调只需提供实际域名、服务器操作系统和 App ID 等非敏感配置；App Secret 由 IT 在服务器本地填写。

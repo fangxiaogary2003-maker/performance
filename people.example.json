@@ -1,0 +1,5 @@
+[
+ {"id":"hr001","name":"绩效管理员示例","dept":"人力资源部","managerId":null,"hrbpId":null,"roles":["admin","hrbp"],"active":true,"feishuOpenId":"ou_replace_with_actual_hr_open_id"},
+ {"id":"mgr001","name":"主管示例","dept":"产品部","managerId":null,"hrbpId":"hr001","roles":["manager"],"active":true,"feishuOpenId":"ou_replace_with_actual_manager_open_id"},
+ {"id":"emp001","name":"员工示例","dept":"产品部","managerId":"mgr001","hrbpId":"hr001","roles":[],"active":true,"feishuOpenId":"ou_replace_with_actual_employee_open_id"}
+]
