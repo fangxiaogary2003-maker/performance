@@ -1,4 +1,4 @@
-﻿飞书自建应用个人待办接入说明（v0.4.1）
+﻿飞书自建应用个人待办接入说明（v0.5.0）
 
 现有应用ID：cli_aa78307771b91c17
 系统入口：https://129.204.171.195/performance/
@@ -57,3 +57,8 @@ sudo -u performance /opt/node-v24.16.0-linux-x64/bin/node --env-file=/etc/gyroor
 获取用户：https://open.feishu.cn/document/server-docs/contact-v3/user/get
 发送消息：https://open.feishu.cn/document/server-docs/im-v1/message/create
 频控策略：https://open.feishu.cn/document/server-docs/api-call-guide/frequency-control
+
+HRBP分工配置：
+姜皓天负责生产供应链中心及其子部门；杨青青负责品牌事业部、职能中心及其子部门；李婷婷负责财务部、研发中心、业务中心、欧拉AI事业部、品质中台部及其子部门。
+以飞书实际组织树为准，例如计划组在品牌事业部、品质中台部独立于生产供应链。人力资源部（含行政组）和总经办当前是独立顶级部门，需要单独明确负责人。HRBP本人需由其他人完成正式HRBP评分，不能自评作正式分。
+HRBP规则在工作区中保存，未来通讯录同步会按部门路径重新匹配人员，不改写已生成月份的负责人。人员管理中手工更改的员工例外优先保留。
