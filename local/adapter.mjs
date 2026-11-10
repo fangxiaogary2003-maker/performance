@@ -15,5 +15,6 @@ export async function adapters(directory){
  };
  const path=key=>{if(!/^[a-zA-Z0-9:_/-]+$/.test(key)||key.includes('..'))throw Error('Invalid file key');return join(dir,'attachments',...key.split('/'));};
  const BUCKET={async put(key,buffer){const f=path(key);await mkdir(resolve(f,'..'),{recursive:true});await writeFile(f,new Uint8Array(buffer));},async get(key){try{return{body:await readFile(path(key))};}catch(e){if(e.code==='ENOENT')return null;throw e;}}};
- return {DB,BUCKET,sql,dir};
+ const ACCESS_REQUESTS={async list(){return sql.prepare('SELECT id,name,created_at FROM login_requests ORDER BY created_at').all();},async get(id){return sql.prepare('SELECT * FROM login_requests WHERE id=?').get(id)||null;},async consume(id){sql.prepare('DELETE FROM login_requests WHERE id=?').run(id);}};
+ return {DB,BUCKET,sql,dir,ACCESS_REQUESTS};
 }

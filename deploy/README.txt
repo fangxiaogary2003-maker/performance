@@ -1,45 +1,41 @@
-公司服务器部署记录（v0.1.1，2026-11-10）
+公司服务器部署与维护说明（v0.2.0，2026-11-10）
 
 入口：https://129.204.171.195/performance/
-飞书 App ID：cli_aa78307771b91c17
 回调：https://129.204.171.195/performance/auth/callback
-服务器：Ubuntu 26.04，沿用已有 Node 24.16.0。
+服务器：Ubuntu26.04，Node24.16.0；保留已有飞书自建应用和管理员绑定。
 
-本版已部署与验证：
-- 服务 gyroor-performance.service 启用开机自启、异常重启。
-- 进程为 performance 专用系统账号，仅监听 127.0.0.1:4310。
-- Nginx 只新增 /performance/ 代理，原分销平台、签署系统、数据看板入口检查正常。
-- 网页、脚本、接口、附件、登录Cookie和回调都支持 /performance 子路径。
-- 应用凭证已通过飞书接口校验，凭证保存在服务器 /etc/gyroor-performance/app.env，root:performance，0640；此包不包含凭证。
-- 每日北京时间 03:30 左右执行备份，最长随机延迟 120 秒。
-- 首次数据库与附件备份已完成。
-- 15 项程序测试通过，包括子路径接口与生产模式拒绝演示角色冒用。
+运行信息
+服务 gyroor-performance.service；账号 performance；监听127.0.0.1:4310。
+程序 /opt/gyroor-performance/current -> releases/下的版本目录。
+数据 /var/lib/gyroor-performance/；备份 /var/backups/gyroor-performance/。
+配置 /etc/gyroor-performance/app.env，root:performance，0640；交付包不含凭证、登录会话或真实数据库。
+代理 /etc/nginx/snippets/gyroor-performance.conf，由原 northstar-ops 站点引用。
+本次只更新程序版本，不改动Nginx及其他业务配置。
+每天北京时间03:30左右自动备份，最长随机延迟120秒；升级前后另做备份。
 
-目录：
-  版本：/opt/gyroor-performance/releases/
-  当前：/opt/gyroor-performance/current
-  数据：/var/lib/gyroor-performance/
-  备份：/var/backups/gyroor-performance/
-  Nginx新增片段：/etc/nginx/snippets/gyroor-performance.conf
-  Nginx原配置备份：/var/backups/gyroor-performance/nginx-before-20261110T033205Z.conf
+首次启用
+打开人员管理，维护真实员工、岗位及主管/HRBP/HRD关系，再生成本月考核单。
+员工先用飞书登录；管理员核对本人开通编号后，在人员管理绑定已有员工，或新建普通员工。
+修改关系不重写历史月份。完整CSV导入保留当前管理员行，角色用 | 分隔，字段不使用英文逗号；已有飞书绑定会保留。
+评分方案默认未批准：原表权重预填为参考，所有待确认政策选项须明确选择、填写批准依据、创建批准规则并绑定月份，才允许发布正式结果。
+当前人员和规则不要用测试名单覆盖。
 
-登录开通：
-员工使用飞书登录后，如果尚未导入名单，系统只显示开通编号，不开放业务数据，也不允许自行选择角色。
-管理员可在服务器列出待开通记录（只显示编号、姓名、时间）：
-  sudo -u performance /opt/node-v24.16.0-linux-x64/bin/node --env-file=/etc/gyroor-performance/app.env /opt/gyroor-performance/current/local/admin.mjs pending
-由授权管理员核对本人提供的编号后，开通首位管理员（替换编号、部门和员工ID）：
-  sudo -u performance /opt/node-v24.16.0-linux-x64/bin/node --env-file=/etc/gyroor-performance/app.env /opt/gyroor-performance/current/local/admin.mjs approve 编号 admin,hrbp 部门 员工ID
-之后重新登录即可。后续员工通过人员名单导入，岗位及主管/HRBP关系由企业提供。
+日常检查
+sudo systemctl status gyroor-performance.service
+sudo systemctl list-timers gyroor-performance-backup.timer
+sudo journalctl -u gyroor-performance.service --since today
+curl --fail https://129.204.171.195/performance/health
 
-日常检查：
-  sudo systemctl status gyroor-performance.service
-  sudo systemctl list-timers gyroor-performance-backup.timer
-  sudo journalctl -u gyroor-performance.service --since today
-  curl --fail https://129.204.171.195/performance/health
+手动备份
+sudo systemctl start gyroor-performance-backup.service
+备份包含SQLite一致性快照和附件。配置凭证另按公司秘密管理方式备份；建议保留异机副本。
 
-回滚程序版本：
-先核实保留版本目录存在，然后将 current 软链接原子指回该版本，重启 gyroor-performance.service；数据目录不随版本切换。
-回滚代理：删除主配置中本次新增的 include /etc/nginx/snippets/gyroor-performance.conf; 一行，执行 nginx -t 成功后 reload。若使用完整备份恢复，应先确认备份后没有其他业务修改，避免覆盖别人的配置。
+升级与回滚
+每次建立独立releases/版本目录，先备份，再原子切换current软链接并重启服务；健康检查失败立即指回旧版本。
+此升级不改变数据库结构，账号、会话、附件及已有业务记录保存在原数据目录。
+若回滚到旧程序，在产生新业务记录后应先评估旧代码是否理解新字段，不要直接用旧代码编辑新表单记录。
+恢复备份：停服务，保留当前数据目录，将同一备份的数据库与附件恢复到新目录并修复属主权限，再启动。不要混用旧数据库与其他WAL/SHM文件。
 
-尚未完成的事项：
-真实用户的首次OAuth登录及管理员绑定仍需本人操作；本版评分字段与原绩效表尚未完整对齐，正式计分默认未启用。部署服务不代表这些业务规则已验收完成。
+发布验证
+29项程序测试、前端构建和本地浏览器联调通过；归档Excel/PDF独立读取通过。
+本版是可试用的单实例实现，未完成160人并发压测或完整异机灾备演练；建议先用少量真实部门试点。
