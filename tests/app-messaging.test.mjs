@@ -38,3 +38,27 @@ test('卡片链接保留指定员工与任务参数，登录回跳仍限制本�
 test('缺少应用消息或直属上级权限时不调用业务接口，也不暴露token与密钥',async()=>{let calls=0;const client=feishuClient({appId:'cli_test',appSecret:'PRIVATE_SECRET',transport:async()=>{calls++;return Response.json({code:0,access_token:'PRIVATE_TOKEN',expires_in:7200,scope:'contact:user.base:readonly'});}});await assert.rejects(()=>client.user('ou_employee'),e=>e.status===409&&!e.message.includes('PRIVATE'));await assert.rejects(()=>client.send('ou_manager',{},'id'),e=>e.status===409&&!e.message.includes('PRIVATE'));assert.equal(calls,1);});
 
 test('未生成个人考核单的通讯录联系人和专用账号不收到填报催办',async()=>{const f=await setup();try{const row=await readStore(f.env.DB,'company',false);row.state.people.push({id:'shared',name:'品质部专用账号',dept:'品质部',active:true,roles:[],managerId:null,feishuOpenId:'ou_shared'});await writeStore(f.env.DB,'company',row.revision,row.state);f.setDate('2026-12-01T01:00:00Z');await f.service.flush();assert.deepEqual(f.calls.map(c=>c.id),['ou_employee']);}finally{f.close();}});
+
+test('人员同步先预览再应用，成功后记录同步时间并保留HRBP及既有考核',async()=>{
+ const raw={departments:[{open_department_id:'design_new',name:'新设计部'}],users:[{open_id:'ou_employee',name:'测试员工',department_ids:['design_new'],leader_user_id:'ou_manager',job_title:'设计师'},{open_id:'ou_manager',name:'测试主管',department_ids:['design_new']},{open_id:'ou_new',name:'测试新员工',department_ids:['design_new'],leader_user_id:'ou_manager'}]};
+ const f=await setup(false,{async directory(){return raw;}});
+ try{
+  const row=await readStore(f.env.DB,'company',false),before=JSON.stringify(row.state.assessments);row.state.hrbpRules=[{departmentId:'design_new',hrbpId:'admin'}];await writeStore(f.env.DB,'company',row.revision,row.state);
+  const status=()=>api(new Request('https://example.test/api/app-messaging/directory'),f.env,f.identity('admin')).then(r=>r.json());
+  assert.equal((await status()).lastSync,null);
+  let r=await f.post('app-messaging/preview-directory',{},'admin');assert.equal(r.status,200);const {preview}=await r.json();assert.deepEqual(preview.changes,{added:1,matched:2,missingManager:1});assert.equal((await status()).lastSync,null);
+  assert.equal((await readStore(f.env.DB,'company',false)).state.people.length,4);
+  r=await f.post('app-messaging/apply-directory',{previewId:preview.id},'admin');assert.equal(r.status,200);const result=await r.json();assert.deepEqual(result.counts,{added:1,updated:2,total:3,missingManager:1});
+  const after=(await readStore(f.env.DB,'company',false)).state;assert.equal(JSON.stringify(after.assessments),before);assert.equal(after.people.find(p=>p.feishuOpenId==='ou_new').hrbpId,'admin');assert.equal(after.people.find(p=>p.id==='employee').hrbpId,'admin');assert(after.people.find(p=>p.id==='admin').roles.includes('admin'));assert.equal((await status()).lastSync.counts.total,3);
+  r=await f.post('app-messaging/apply-directory',{previewId:preview.id},'admin');assert.equal(r.status,200);assert.equal((await r.json()).counts.added,0);assert.equal((await readStore(f.env.DB,'company',false)).state.people.length,5);
+ }finally{f.close();}
+});
+
+test('人员同步状态和操作限管理员，预览失效或工作区过期时不修改人员',async()=>{
+ let calls=0;const f=await setup(false,{async directory(){calls++;return {departments:[],users:[{open_id:'ou_new',name:'测试新增账号'}]};}});
+ try{
+  const forbidden=await api(new Request('https://example.test/api/app-messaging/directory'),f.env,f.identity('employee'));assert.equal(forbidden.status,403);assert.equal((await f.post('app-messaging/preview-directory')).status,403);assert.equal(calls,0);
+  const {preview}=await (await f.post('app-messaging/preview-directory',{},'admin')).json();f.setDate('2026-11-10T02:16:00Z');assert.equal((await f.post('app-messaging/apply-directory',{previewId:preview.id},'admin')).status,409);
+  const row=await readStore(f.env.DB,'company',false),r=await api(new Request('https://example.test/api/app-messaging/apply-directory',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({revision:row.revision-1,previewId:preview.id})}),f.env,f.identity('admin'));assert.equal(r.status,409);assert.equal((await readStore(f.env.DB,'company',false)).state.people.length,4);assert.equal((await readStore(f.env.DB,'company',false)).state.directorySync,undefined);
+ }finally{f.close();}
+});
