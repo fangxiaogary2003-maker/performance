@@ -2,7 +2,7 @@
 import React,{useState,useEffect} from 'react';
 import {appPath} from '../lib/app-path.mjs';
 const statusLabel:any={sent:'已发送',queued:'待发送',sending:'发送中',retry:'自动重试中',blocked:'待开通／身份待核对',unknown:'结果待核对',cancelled:'待办已变化，取消发送'};
-const kindLabel:any={manager_submission:'员工提交后通知上级',task_review:'跨部门待验收',task_returned:'任务退回',assessment_returned:'整月退回',monthly:'考核待办催办',cycle_digest:'管理员进度通知',cycle_summary:'月度汇总生成通知',test:'测试卡片'};
+const kindLabel:any={manager_submission:'员工提交后通知上级',monthly_collaboration:'月度跨部门评分',task_review:'历史任务待验收',task_returned:'任务退回',assessment_returned:'整月退回',monthly:'考核待办催办',cycle_digest:'管理员进度通知',cycle_summary:'月度汇总生成通知',test:'测试卡片'};
 export function ReminderSettings({data,onPeople}:any){
  const [state,S]=useState<any>(null),[f,F]=useState<any>({}),[busy,B]=useState(false),[message,M]=useState('');
  const headers={'Content-Type':'application/json','x-demo-user':data.user.id};
@@ -12,7 +12,7 @@ export function ReminderSettings({data,onPeople}:any){
   await load();M(name==='check'?'接入检查已更新':name==='test'?(x.receipt?.status==='sent'?'测试卡片已发送到你的飞书':'测试消息状态：'+(statusLabel[x.receipt?.status]||'待处理')):'设置已保存');
  }catch(e:any){M(e.message);}finally{B(false);}}
  return <section className="panel reminder-settings"><div className="panel-heading"><h3>飞书自建应用与个人待办</h3><span className={'badge '+(state?.connection?.ready?'accepted':'planned')}>{state?.connection?.ready?'接入检查通过':'待开通／待检查'}</span></div><div className="setting-bottom">
- <p>员工提交整月绩效后，从飞书通讯录核对直属上级并发送个人评分卡片。跨部门任务通知 HRBP 指定的人员；按公司工作日历向当前责任人推送待办，管理员收到未完成名单与卡点；评分齐全后自动生成汇总表并通知管理员。</p>
+ <p>员工提交整月绩效后，从飞书通讯录核对直属上级并发送个人评分卡片。月度跨部门评分通知 HRBP 指定的两位评分人；按公司工作日历向当前责任人推送待办，管理员收到未完成名单与卡点；评分齐全后自动生成汇总表并通知管理员。</p>
  <p className="subtle">应用 ID：{state?.appId||'—'} · 使用服务器已有应用凭证。</p>
  {state?.demo&&<p className="notice-inline">演示环境不读取真实通讯录、不发送真实消息。</p>}{message&&<p role="status" className="notice-inline">{message}</p>}
  {state&&<><div className="button-row"><button disabled={busy||state.demo} onClick={()=>action('check')}>检查应用权限与机器人</button><button disabled={busy||state.demo} onClick={()=>action('test')}>发送测试卡片给我</button><button disabled={busy} onClick={load}>刷新接入状态</button></div>

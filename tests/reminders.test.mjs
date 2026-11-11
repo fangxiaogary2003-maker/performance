@@ -81,7 +81,7 @@ test('进程在发送中退出后保留待核对状态，演示环境不会发�
  }finally{f.sql.close();}
 });
 test('群提醒管理接口仅管理员可用，凭证不进入工作区快照',async()=>{
- const env=await adapters(resolve('work/reminder-api-'+Date.now()));try{const row=await readStore(env.DB,'company',false);await writeStore(env.DB,'company',row.revision,demoState());const revision=1;
+ const env=await adapters(resolve('work/reminder-api-'+Date.now()));try{const row=await readStore(env.DB,'company',false);await writeStore(env.DB,'company',row.revision,demoState({legacy:true}));const revision=1;
  env.REMINDERS=groupReminders(env.sql,{keySecret:'server-only-test',base:'https://example.test/performance',transport:async()=>Response.json({code:0})});
  const identity=id=>({key:'company',userId:id,demo:false});
  assert.equal((await api(new Request('https://example.test/api/notifications'),env,identity('lin'))).status,403);

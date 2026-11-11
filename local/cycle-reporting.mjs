@@ -15,7 +15,7 @@ export function cycleReporting(sql,{clock=()=>new Date()}={}){
  function scheduled(s,workspaceId='company',hour=9){
   const events=[];for(const c of s.cycles){const report=cycleProgress(s,c.id),window=cycleReminderWindow(c,s.calendar,clock(),hour);if(!report?.counts.total||report.allPublished||!window.eligible)continue;
    const owners=new Set(report.rows.flatMap(r=>r.pending.filter(p=>p.role!=='admin').flatMap(p=>p.responsibleIds)));
-   for(const recipientId of owners){const items=cyclePendingFor(report,recipientId),page=items.some(i=>i.role==='employee')?'mine':items.some(i=>['manager','hrbp'].includes(i.role))?'team':items.some(i=>i.role==='hrd')?'bonus':'review';events.push({id:`cycle_daily:${c.id}:${window.date}:${recipientId}`,kind:'monthly',cycleId:c.id,month:c.month,date:window.date,recipientId,page,stageTitle:'本人未完成事项',stageBody:'请处理绩效待办。'});}
+   for(const recipientId of owners){const items=cyclePendingFor(report,recipientId),page=items.every(i=>i.key==='monthly_assign')?'assign':items.some(i=>i.role==='employee')?'mine':items.some(i=>['manager','hrbp'].includes(i.role))?'team':items.some(i=>i.role==='hrd')?'bonus':'review';events.push({id:`cycle_daily:${c.id}:${window.date}:${recipientId}`,kind:'monthly',cycleId:c.id,month:c.month,date:window.date,recipientId,page,stageTitle:'本人未完成事项',stageBody:'请处理绩效待办。'});}
    for(const p of administrators(s))events.push({id:`cycle_digest:${c.id}:${window.date}:${p.id}`,kind:'cycle_digest',cycleId:c.id,month:c.month,date:window.date,recipientId:p.id,overdue:window.overdue});
   }return events;
  }
