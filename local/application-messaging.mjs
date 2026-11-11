@@ -1,4 +1,5 @@
 import {pilotManager,workspaceMessageBase,authorizePilot} from '../lib/pilot-workspace.mjs';
+import {managerQualityEvents} from '../lib/quality-review.mjs';
 import {createHash,randomUUID} from 'node:crypto';
 import {AppError,ensure} from '../lib/errors.mjs';
 import {readStore} from '../lib/performance.mjs';
@@ -39,7 +40,7 @@ export function applicationMessaging(sql,{env,client,base,appId,demo=false,clock
  function decorate(view){for(const a of view.assessments)if(a.monthlySubmission?.eventId)a.submissionNotification=receipt(a.monthlySubmission.eventId);return view;}
  async function flush(workspaceId='company'){
   if(flushing||demo)return;flushing=true;try{const {state:s}=await readStore(env.DB,workspaceId,false),c=config();if(s.pilotWorkspace?.active===false)return;
-   if(c.workflowEnabled)for(const e of s.notificationEvents||[])enqueue(s,e,workspaceId);
+   if(c.workflowEnabled){for(const e of s.notificationEvents||[])enqueue(s,e,workspaceId);for(const e of managerQualityEvents(s))enqueue(s,e,workspaceId);}
    const summaries=reports.sync(s,workspaceId);if(c.workflowEnabled)for(const e of summaries)enqueue(s,e,workspaceId);if(c.monthlyEnabled)for(const e of reports.scheduled(s,workspaceId,c.hour))enqueue(s,e,workspaceId);
    const old=sql.prepare("SELECT id,first_attempt_at FROM app_message_outbox WHERE status='sending' AND updated_at<?").all(new Date(clock().getTime()-60000).toISOString());
    for(const row of old)sql.prepare('UPDATE app_message_outbox SET status=?,error_code=? WHERE id=?').run(clock().getTime()-Date.parse(row.first_attempt_at)<50*60000?'retry':'unknown','INTERRUPTED',row.id);
