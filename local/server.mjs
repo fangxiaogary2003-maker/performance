@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {ensureCurrentPeriods} from '../lib/assessment-period.mjs';
 import {randomBytes,createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {resolve,dirname,join} from 'node:path';
@@ -23,7 +24,7 @@ const cookie=(name,value,seconds)=>`${name}=${value}; Path=${basePath||'/'}; Htt
 const redirect=(res,url,cs)=>{res.writeHead(302,{'Location':url,'Set-Cookie':cs||[],'Cache-Control':'no-store'});res.end();};
 const send=(res,status,msg)=>{res.writeHead(status,{'Content-Type':'text/plain;charset=utf-8','Cache-Control':'no-store'});res.end(msg);};
 let ticking=false;
-async function tick(){if(ticking||demo||process.env.AUTO_OPEN_CYCLES!=='true')return;ticking=true;try{const {state,revision}=await readStore(env.DB,'company',false);const month=monthNow(),admin=state.people.find(p=>p.active&&p.roles.includes('admin'));if(admin&&!state.cycles.some(c=>c.month===month)){mutate(state,admin,'openCycle',{month});await writeStore(env.DB,'company',revision,state);}}catch(e){console.error('Cycle scheduler:',e.message);}finally{ticking=false;}}
+async function tick(){if(ticking||demo||process.env.AUTO_OPEN_CYCLES!=='true')return;ticking=true;try{const {state,revision}=await readStore(env.DB,'company',false),admin=state.people.find(p=>p.active&&p.roles.includes('admin'));if(ensureCurrentPeriods(state,admin,b=>mutate(state,admin,'openCycle',b)))await writeStore(env.DB,'company',revision,state);}catch(e){console.error('Cycle scheduler:',e.message);}finally{ticking=false;}}
 const rate=new Map();
 const server=http.createServer(async(req,res)=>{
  res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Cache-Control','no-store');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self' https://*.feishu.cn https://*.larksuite.com");

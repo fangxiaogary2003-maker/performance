@@ -2,6 +2,7 @@
 import React from 'react';
 import {Layers,LogOut,RefreshCw,Plus,ArrowRight,CheckCircle2,FileText,Calendar,Download} from 'lucide-react';
 import {AssessmentSections} from './form-sections';
+import {periodLabel,periodDescription} from '../lib/assessment-period.mjs';
 import {appPath} from '../lib/app-path.mjs';
 import {monthlyAssessmentsToRate} from '../lib/monthly-collaboration.mjs';
 import {employeeTodo,employeeReviewTodos} from '../lib/employee-todos.mjs';
@@ -15,7 +16,8 @@ export function EmployeeHome({data,cycleId,onCycle,onRefresh,onCreate,onConfirm,
   <header className="employee-topbar"><div className="employee-brand"><Layers size={22}/><b>我的绩效</b></div><div className="employee-account"><span>{u.name}</span><button className="icon-button" aria-label="刷新我的绩效" onClick={onRefresh}><RefreshCw size={17}/></button>{!data.demo&&<a href={appPath('/auth/logout')} aria-label="退出登录"><LogOut size={17}/></a>}</div></header>
   <main className="employee-content">
    {data.demo&&<div className="employee-demo"><span>虚构数据演示</span><select aria-label="切换体验身份" value={u.id} onChange={e=>onActor(e.target.value)}>{data.people.map((p:any)=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div>}
-   <div className="employee-heading"><div><p>{u.name}，你好</p><h1>我的绩效待办</h1></div><label className="employee-month"><Calendar size={16}/><select aria-label="考核月份" value={cycleId} onChange={e=>onCycle(e.target.value)}>{data.cycles.map((c:any)=><option key={c.id} value={c.id}>{c.month.replace('-',' 年 ')} 月</option>)}</select></label></div>
+   <div className="employee-heading"><div><p>{u.name}，你好</p><h1>我的绩效待办</h1></div><label className="employee-month"><Calendar size={16}/><select aria-label="考核工作月份" value={cycleId} onChange={e=>onCycle(e.target.value)}>{data.cycles.map((c:any)=><option key={c.id} value={c.id}>{periodLabel(c.month)}</option>)}</select></label></div>
+   {c&&<p className="period-context">{periodDescription(c.month)}</p>}
    <section className={'employee-next '+(done?'is-done':'')} aria-label="当前需要完成的事项"><div className="employee-next-icon">{done?<CheckCircle2 size={25}/>:<FileText size={25}/>}</div><div><small>{c?.month} 月度绩效{c?.due&&active?' · 截止 '+c.due:''}</small><h2>{todo.title}</h2><p>{todo.body}</p></div>{todo.stage==='goals'&&<button className="primary" disabled={busy} onClick={onCreate}>填写工作目标<ArrowRight size={15}/></button>}{todo.stage==='confirm'&&<button className="primary" disabled={busy} onClick={onConfirm}>确认本月目标<ArrowRight size={15}/></button>}{['tasks','cases','submit'].includes(todo.stage)&&<a className="primary employee-jump" href={todo.stage==='tasks'?'#my-work':'#my-monthly-form'}>{todo.stage==='tasks'?'去填写':'继续填报'}<ArrowRight size={15}/></a>}</section>
    {a?.monthlySubmission?.status==='returned'&&todo.stage!=='submit'&&<p className="employee-returned">退回意见：{a.monthlySubmission.returnReason}</p>}
    {monthlyRatings.length>0&&<section className="panel employee-reviews"><div className="panel-heading"><h3>待我月度跨部门评分 <span>{monthlyRatings.length} 人</span></h3></div>{monthlyRatings.map((a:any)=><div className="employee-task" key={a.id}><div><b>{a.employeeName}</b><p>{a.department} · 当月整体协作表现</p></div><button className="primary" onClick={()=>onMonthlyReview(a)}>开始评分<ArrowRight size={14}/></button></div>)}</section>}
