@@ -1,10 +1,10 @@
 {
-  "application_version": "0.6.10",
+  "application_version": "0.6.11",
   "repository_source_reference": "The repository commit containing this manifest; exact deployed commit is recorded by the runtime deployment manifest.",
   "tests_passed": 184,
   "frontend_sha256": {
     "selfhost/public/app.css": "f0ab3e59113ca5e10e671391bbfbc6f8922373c7fd7af9065e9d79de0f8642e4",
-    "selfhost/public/app.js": "603925da871cf42900e6304c7f5accf8fdeb314e6c9ee322703e0ff0bc725a85",
+    "selfhost/public/app.js": "b4024c0e435469c9135f5a94c82bbc022c1a0fa8e22e3044ae5752630f44039f",
     "selfhost/public/index.html": "9e26a6e500067c78012a02498c1fe822da21ee6c9d63f83cf895dc280214024e"
   }
 }
