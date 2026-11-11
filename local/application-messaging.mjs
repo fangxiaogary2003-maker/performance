@@ -1,3 +1,4 @@
+import {pilotManager,workspaceMessageBase,authorizePilot} from '../lib/pilot-workspace.mjs';
 import {createHash,randomUUID} from 'node:crypto';
 import {AppError,ensure} from '../lib/errors.mjs';
 import {readStore} from '../lib/performance.mjs';
@@ -23,7 +24,7 @@ export function applicationMessaging(sql,{env,client,base,appId,demo=false,clock
  function applyDirectory(s,id){const preview=cached('directory');ensure(preview&&preview.id===id&&clock().getTime()-Date.parse(preview.createdAt)<15*60000,'通讯录预览已过期，请重新读取',409);return mergeDirectory(s,preview.contacts);}
  async function prepareSubmission(s,u,a){ensure(a&&a.employeeId===u.id&&a.status==='active','只能提交自己的有效考核',403);
   if(demo){ensure(a.managerId,'演示员工尚未配置主管',409);return;}
-  ensure(u.feishuOpenId,'请先绑定员工的飞书账号',409);const employee=await client.user(u.feishuOpenId);ensure(activeContact(employee),'员工在飞书通讯录中已停用／离职',409);ensure(employee.leader_user_id&&employee.leader_user_id!==u.feishuOpenId,'飞书通讯录中尚未配置有效直属上级，请联系HR',409);
+  ensure(u.feishuOpenId,'请先绑定员工的飞书账号',409);const employee=await client.user(u.feishuOpenId);ensure(activeContact(employee),'员工在飞书通讯录中已停用／离职',409);const pinned=pilotManager(s,a);if(pinned){const managerProfile=await client.user(pinned.feishuOpenId);ensure(activeContact(managerProfile),'试跑指定上级已停用／离职',409);a.managerVerifiedAt=clock().toISOString();a.managerSource='pilot_authorized';return;}ensure(employee.leader_user_id&&employee.leader_user_id!==u.feishuOpenId,'飞书通讯录中尚未配置有效直属上级，请联系HR',409);
   const leader=await client.user(employee.leader_user_id);ensure(activeContact(leader),'飞书直属上级已停用／离职，请联系HR',409);
   let manager=s.people.find(p=>p.feishuOpenId===leader.open_id);ensure(!manager||manager.active,'系统中的直属上级账号已停用，请管理员核对',409);
   const hasScores=Object.keys(a.qualityEvaluations||{}).length||Object.keys(a.components||{}).length||s.tasks.some(t=>t.assessmentId===a.id&&t.managerEvaluation);
@@ -37,19 +38,19 @@ export function applicationMessaging(sql,{env,client,base,appId,demo=false,clock
  function receipt(eventId){const row=sql.prepare('SELECT status,error_code,updated_at FROM app_message_outbox WHERE id=?').get(eventId);return row?{status:row.status,updatedAt:row.updated_at}: {status:'queued'};}
  function decorate(view){for(const a of view.assessments)if(a.monthlySubmission?.eventId)a.submissionNotification=receipt(a.monthlySubmission.eventId);return view;}
  async function flush(workspaceId='company'){
-  if(flushing||demo)return;flushing=true;try{const {state:s}=await readStore(env.DB,workspaceId,false),c=config();
+  if(flushing||demo)return;flushing=true;try{const {state:s}=await readStore(env.DB,workspaceId,false),c=config();if(s.pilotWorkspace?.active===false)return;
    if(c.workflowEnabled)for(const e of s.notificationEvents||[])enqueue(s,e,workspaceId);
    const summaries=reports.sync(s,workspaceId);if(c.workflowEnabled)for(const e of summaries)enqueue(s,e,workspaceId);if(c.monthlyEnabled)for(const e of reports.scheduled(s,workspaceId,c.hour))enqueue(s,e,workspaceId);
    const old=sql.prepare("SELECT id,first_attempt_at FROM app_message_outbox WHERE status='sending' AND updated_at<?").all(new Date(clock().getTime()-60000).toISOString());
    for(const row of old)sql.prepare('UPDATE app_message_outbox SET status=?,error_code=? WHERE id=?').run(clock().getTime()-Date.parse(row.first_attempt_at)<50*60000?'retry':'unknown','INTERRUPTED',row.id);
    const rows=sql.prepare("SELECT * FROM app_message_outbox WHERE workspace_id=? AND (status='queued' OR (status='retry' AND (next_attempt_at IS NULL OR next_attempt_at<=?))) ORDER BY CASE WHEN kind='monthly' THEN 1 ELSE 0 END,created_at LIMIT 25").all(workspaceId,clock().toISOString());
    for(const row of rows){const e=JSON.parse(row.payload);if(['monthly','cycle_digest'].includes(e.kind)?!c.monthlyEnabled:e.kind!=='test'&&!c.workflowEnabled)continue;
-    const {state:live}=await readStore(env.DB,workspaceId,false),p=live.people.find(p=>p.id===row.recipient_id&&p.active),livePlan=reminderPlan(live.calendar,clock(),c.hour),expired=e.cycleId?!reports.current(live,e,c.hour):e.kind==='monthly'&&(e.date!==livePlan.date||!livePlan.eligible||!monthlyRecipients(live,livePlan).includes(row.recipient_id));
+    const {state:live}=await readStore(env.DB,workspaceId,false);if(live.pilotWorkspace){const {state:company}=await readStore(env.DB,'company',false);try{authorizePilot(company,live,row.recipient_id,workspaceId);}catch{sql.prepare("UPDATE app_message_outbox SET status='cancelled',error_code='PILOT_ACCESS_REVOKED' WHERE id=?").run(row.id);continue;}}const p=live.people.find(p=>p.id===row.recipient_id&&p.active),livePlan=reminderPlan(live.calendar,clock(),c.hour),expired=e.cycleId?!reports.current(live,e,c.hour):e.kind==='monthly'&&(e.date!==livePlan.date||!livePlan.eligible||!monthlyRecipients(live,livePlan).includes(row.recipient_id));
     if(!row.recipient_open_id&&p?.feishuOpenId){sql.prepare('UPDATE app_message_outbox SET recipient_open_id=? WHERE id=? AND recipient_open_id IS NULL').run(p.feishuOpenId,row.id);row.recipient_open_id=p.feishuOpenId;}
     if(!p||!eventCurrent(live,e)||expired||p.feishuOpenId!==row.recipient_open_id){sql.prepare("UPDATE app_message_outbox SET status='cancelled',error_code='NO_LONGER_CURRENT' WHERE id=?").run(row.id);continue;}
     if(row.status==='retry'&&row.first_attempt_at&&clock().getTime()-Date.parse(row.first_attempt_at)>=50*60000){sql.prepare("UPDATE app_message_outbox SET status='unknown',error_code='DEDUPE_WINDOW_EXPIRED' WHERE id=?").run(row.id);continue;}
     const at=clock().toISOString(),claim=sql.prepare("UPDATE app_message_outbox SET status='sending',attempts=attempts+1,updated_at=?,first_attempt_at=COALESCE(first_attempt_at,?) WHERE id=? AND status IN ('queued','retry')").run(at,at,row.id);if(!claim.changes)continue;
-    try{const messageId=await client.send(row.recipient_open_id,appMessageCard(live,e,base),createHash('sha256').update(row.id).digest('hex').slice(0,40));sql.prepare("UPDATE app_message_outbox SET status='sent',message_id=?,updated_at=?,error_code=NULL WHERE id=?").run(messageId,clock().toISOString(),row.id);}
+    try{const messageId=await client.send(row.recipient_open_id,appMessageCard(live,e,workspaceMessageBase(base,workspaceId,live)),createHash('sha256').update(row.id).digest('hex').slice(0,40));sql.prepare("UPDATE app_message_outbox SET status='sent',message_id=?,updated_at=?,error_code=NULL WHERE id=?").run(messageId,clock().toISOString(),row.id);}
     catch(error){const retryable=error.retryable===true&&row.attempts<4,state=retryable?'retry':error.retryable?'unknown':'blocked';sql.prepare('UPDATE app_message_outbox SET status=?,error_code=?,updated_at=?,next_attempt_at=? WHERE id=?').run(state,String(error.code||'NOT_READY'),clock().toISOString(),new Date(clock().getTime()+60000*Math.min(10,2**row.attempts)).toISOString(),row.id);}
    }
   }finally{flushing=false;}

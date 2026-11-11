@@ -1,7 +1,7 @@
 'use client';
 import React,{useEffect,useState} from 'react';
 import {Plus,Check,Users,AlertCircle,Download} from 'lucide-react';
-import {appPath} from '../lib/app-path.mjs';
+import {appPath,workspaceHeaders} from '../lib/app-path.mjs';
 import {DirectorySync} from './directory-sync';
 import {gradingRuleFields} from '../lib/grade-policy.mjs';
 import {FORM_TYPE,FORM_TEMPLATE,reviewersOf} from '../lib/form-engine.mjs';
@@ -46,7 +46,7 @@ export function AssessmentSections({data,a,onAction,busy,compact=false}:Any){
 export {RuleSettings} from './scheme-management';
 export function PeoplePanel({data,cycleId,onAction,onRefresh,busy}:Any){
  const [selected,S]=useState<Any>(null),[f,F]=useState<Any>({}),[pending,PN]=useState<Any[]>([]),[requestsError,RE]=useState(''),[binding,BD]=useState<Any>({}),[csv,CSV]=useState('');
- const load=()=>fetch(appPath('/api/access-requests'),{headers:{'x-demo-user':data.user.id}}).then(async r=>{const x=await r.json();if(!r.ok)throw Error(x.error);PN(x.requests);RE('');}).catch(e=>RE(e.message));
+ const load=()=>fetch(appPath('/api/access-requests'),{headers:workspaceHeaders(data.user.id)}).then(async r=>{const x=await r.json();if(!r.ok)throw Error(x.error);PN(x.requests);RE('');}).catch(e=>RE(e.message));
  useEffect(()=>{load();},[data.revision]);
  const edit=(p:Any)=>{S(p.id);F({...p,position:p.position||'',hrdId:p.hrdId||''});};
  const change=(key:string,v:Any)=>F((x:Any)=>({...x,[key]:v}));

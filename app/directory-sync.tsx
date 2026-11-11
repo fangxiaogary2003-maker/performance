@@ -1,11 +1,11 @@
 'use client';
 import React,{useEffect,useState} from 'react';
 import {RefreshCw,Users} from 'lucide-react';
-import {appPath} from '../lib/app-path.mjs';
+import {appPath,workspaceHeaders} from '../lib/app-path.mjs';
 
 export function DirectorySync({data,onRefresh}:any){
  const [status,S]=useState<any>(null),[preview,P]=useState<any>(null),[busy,B]=useState(''),[message,M]=useState(''),[error,E]=useState('');
- const headers={'Content-Type':'application/json','x-demo-user':data.user.id};
+ const headers=workspaceHeaders(data.user.id);
  async function load(){const r=await fetch(appPath('/api/app-messaging/directory'),{headers,cache:'no-store'}),x=await r.json();if(!r.ok)throw Error(x.error||'读取同步状态失败');S(x);}
  useEffect(()=>{load().catch(e=>E(e.message));},[data.user.id,data.revision]);
  async function sync(apply=false){

@@ -1,7 +1,7 @@
 'use client';
 import React,{useState,useEffect} from 'react';
 import {Download,RefreshCw,Search} from 'lucide-react';
-import {appPath} from '../lib/app-path.mjs';
+import {appPath,workspaceHeaders} from '../lib/app-path.mjs';
 import {download} from '../lib/exports.mjs';
 export function CycleReportContent({result,filter,query,onFilter,onQuery,onRefresh,onDownload,busy,targetId}:any){
  const r=result.progress,rows=r.rows.filter((x:any)=>(filter==='all'||filter==='unfinished'&&!x.published||filter==='complete'&&x.published||filter==='scored'&&x.scoringReady)&&[x.name,x.department,x.responsible,...x.pending.map((p:any)=>p.step)].join(' ').includes(query));
@@ -12,7 +12,7 @@ export function CycleReportContent({result,filter,query,onFilter,onQuery,onRefre
  </div>;
 }
 export function CycleReportPanel({data,cycleId}:any){
- const [result,S]=useState<any>(null),[query,Q]=useState(''),[filter,F]=useState('unfinished'),[busy,B]=useState(false),[error,E]=useState('');const headers={'content-type':'application/json','x-demo-user':data.user.id};
+ const [result,S]=useState<any>(null),[query,Q]=useState(''),[filter,F]=useState('unfinished'),[busy,B]=useState(false),[error,E]=useState('');const headers=workspaceHeaders(data.user.id);
  const targetId=typeof location==='undefined'?'':new URLSearchParams(location.search).get('reportId');
  useEffect(()=>{if(result&&targetId)document.getElementById('report-version-'+targetId)?.scrollIntoView({block:'center'});},[result,targetId]);
  async function load(){const r=await fetch(appPath('/api/cycle-reports?cycleId='+encodeURIComponent(cycleId)),{headers,cache:'no-store'}),x=await r.json();if(!r.ok)throw Error(x.error);S(x);E('');}

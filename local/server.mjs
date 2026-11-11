@@ -31,7 +31,7 @@ const server=http.createServer(async(req,res)=>{
  try{
  const publicUrl=new URL(req.url,origin),path=internalPath(publicUrl.pathname,basePath),cs=cookies(req);
  if(path===null){send(res,404,'页面不存在');return;}
- if(publicUrl.pathname===basePath&&basePath){redirect(res,basePath+'/');return;}
+ if(publicUrl.pathname===basePath&&basePath){redirect(res,basePath+'/'+publicUrl.search);return;}
  const url=new URL(path+publicUrl.search,origin);
  if(url.pathname==='/health'){send(res,200,'ok');return;}
  if(url.pathname==='/auth/login'&&!demo){
@@ -66,6 +66,6 @@ const server=http.createServer(async(req,res)=>{
 server.requestTimeout=30000;server.headersTimeout=15000;
 server.listen(port,host,()=>{console.log(`绩效工作台 Local: http://${host}:${port} (${demo?'虚构数据演示':'生产飞书登录'})`);});
 let reminding=false;
-async function remind(){if(demo||reminding)return;reminding=true;try{const {state}=await readStore(env.DB,'company',false);await env.APP_MESSAGING.flush('company');}catch(e){console.error('Reminder scheduler:',e.message);}finally{reminding=false;}}
+async function remind(){if(demo||reminding)return;reminding=true;try{const {state}=await readStore(env.DB,'company',false);await env.APP_MESSAGING.flush('company');for(const row of env.sql.prepare("SELECT id,payload FROM workspaces WHERE id LIKE 'pilot-%'").all()){const pilot=JSON.parse(row.payload);if(pilot.pilotWorkspace?.active===true)await env.APP_MESSAGING.flush(row.id);}}catch(e){console.error('Reminder scheduler:',e.message);}finally{reminding=false;}}
 const timer=setInterval(()=>{tick();remind();},60000);timer.unref();await tick();await remind();
 for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>{clearInterval(timer);server.close(()=>{env.sql.close();process.exit(0);});});

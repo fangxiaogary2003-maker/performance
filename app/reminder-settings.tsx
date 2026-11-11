@@ -1,11 +1,11 @@
 'use client';
 import React,{useState,useEffect} from 'react';
-import {appPath} from '../lib/app-path.mjs';
+import {appPath,workspaceHeaders} from '../lib/app-path.mjs';
 const statusLabel:any={sent:'已发送',queued:'待发送',sending:'发送中',retry:'自动重试中',blocked:'待开通／身份待核对',unknown:'结果待核对',cancelled:'待办已变化，取消发送'};
-const kindLabel:any={manager_submission:'员工提交后通知上级',monthly_collaboration:'月度跨部门评分',task_review:'历史任务待验收',task_returned:'任务退回',assessment_returned:'整月退回',monthly:'考核待办催办',cycle_digest:'管理员进度通知',cycle_summary:'月度汇总生成通知',test:'测试卡片'};
+const kindLabel:any={pilot_invitation:'试跑填写邀请',goal_confirmation:'工作事项待上级确认',goal_confirmed:'上级已确认工作事项',manager_submission:'员工提交后通知上级',monthly_collaboration:'月度跨部门评分',task_review:'历史任务待验收',task_returned:'任务退回',assessment_returned:'整月退回',monthly:'考核待办催办',cycle_digest:'管理员进度通知',cycle_summary:'月度汇总生成通知',test:'测试卡片'};
 export function ReminderSettings({data,onPeople}:any){
  const [state,S]=useState<any>(null),[f,F]=useState<any>({}),[busy,B]=useState(false),[message,M]=useState('');
- const headers={'Content-Type':'application/json','x-demo-user':data.user.id};
+ const headers=workspaceHeaders(data.user.id);
  async function load(){try{const r=await fetch(appPath('/api/app-messaging'),{headers,cache:'no-store'}),x=await r.json();if(!r.ok)throw Error(x.error);S(x);F({...x.config});}catch(e:any){M(e.message);}}
  useEffect(()=>{load();},[data.user.id]);
  async function action(name:string,body:any={}){B(true);M('');try{const r=await fetch(appPath('/api/app-messaging/'+name),{method:'POST',headers,body:JSON.stringify({...body,revision:data.revision})}),x=await r.json();if(!r.ok)throw Error(x.error);
