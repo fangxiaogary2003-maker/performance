@@ -1,11 +1,10 @@
 {
-  "application_version": "0.6.7",
-  "application_source_commit": "424b05a48275ae5ec7b48ba15d00c5a29af43894",
-  "tests_passed": 171,
+  "application_version": "0.6.8",
+  "repository_source_reference": "The repository commit containing this manifest; exact deployed commit is recorded by the runtime deployment manifest.",
+  "tests_passed": 176,
   "frontend_sha256": {
-    "selfhost/public/app.css": "e219607714bc749951c613849231d54c60ae950329268e2bf2d3efadba9888fc",
-    "selfhost/public/app.js": "6c56900db967c6cf21f6facc7868a5c990b6f2539bbee8ea21702f7026c1c41c",
+    "selfhost/public/app.css": "f0ab3e59113ca5e10e671391bbfbc6f8922373c7fd7af9065e9d79de0f8642e4",
+    "selfhost/public/app.js": "ab7f33ea5fc3ed1f320f1ecd794b795fbc6174a6974280e3f7d039081d4ba113",
     "selfhost/public/index.html": "9e26a6e500067c78012a02498c1fe822da21ee6c9d63f83cf895dc280214024e"
-  },
-  "note": "Application source commit is the deployed runtime source; repository documentation and packaged frontend are added by the GitHub synchronization commit."
+  }
 }
