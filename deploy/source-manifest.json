@@ -3,8 +3,11 @@
   "repository_source_reference": "The repository commit containing this manifest; exact deployed commit is recorded by the runtime deployment manifest.",
   "tests_passed": 189,
   "frontend_sha256": {
-    "selfhost/public/app.css": "f0ab3e59113ca5e10e671391bbfbc6f8922373c7fd7af9065e9d79de0f8642e4",
+    "selfhost/public/app.css": "30c6ea79c994f32319b17a2b3d3d6836c98ac5043cf7af803ea44c3f23aecd78",
     "selfhost/public/app.js": "b0fba70bc337c1aeb55884acad02c837402a4a21d1bf2d1442af25244aeb3838",
     "selfhost/public/index.html": "9e26a6e500067c78012a02498c1fe822da21ee6c9d63f83cf895dc280214024e"
-  }
+  },
+  "ui_revision": "2026-11-11-minimal-1",
+  "change_scope": "appearance_only",
+  "backup_source_commit": "585f351f395d4782707a44751309c99e6787afa0"
 }
