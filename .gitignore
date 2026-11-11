@@ -20,7 +20,8 @@ next-env.d.ts
 # Test output
 /coverage/
 /data/
-/selfhost/public/
+# Built self-hosted frontend is versioned for clone-and-run deployment.
+/selfhost/public/*.map
 /backups/
 
 # Package-manager logs

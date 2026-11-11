@@ -1,0 +1,3 @@
+# Preserve the exact bytes of the deployed frontend across Windows/Linux clones.
+# Generated JavaScript contains intentional trailing spaces inside PDF syntax strings.
+selfhost/public/* -text -whitespace
