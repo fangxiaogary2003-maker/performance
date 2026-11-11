@@ -5,10 +5,12 @@ import {normalizedDirectory,mergeDirectory,activeContact} from '../lib/feishu-di
 import {appMessageCard,eventCurrent,monthlyRecipients} from '../lib/app-events.mjs';
 import {reminderPlan} from '../lib/reminder-plan.mjs';
 import {FEISHU_SCOPES} from './feishu-client.mjs';
+import {cycleReporting} from './cycle-reporting.mjs';
 export function applicationMessaging(sql,{env,client,base,appId,demo=false,clock=()=>new Date()}={}){
  sql.exec(`CREATE TABLE IF NOT EXISTS app_messaging_settings(id INTEGER PRIMARY KEY CHECK(id=1),revision INTEGER NOT NULL,payload TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS app_messaging_cache(id TEXT PRIMARY KEY,payload TEXT NOT NULL,created_at TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS app_message_outbox(id TEXT PRIMARY KEY,workspace_id TEXT NOT NULL,kind TEXT NOT NULL,recipient_id TEXT NOT NULL,recipient_open_id TEXT,recipient_name TEXT,payload TEXT NOT NULL,status TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,first_attempt_at TEXT,next_attempt_at TEXT,error_code TEXT,message_id TEXT);`);
+ const reports=cycleReporting(sql,{clock});
  let flushing=false;
  const config=()=>{const row=sql.prepare('SELECT * FROM app_messaging_settings WHERE id=1').get();return row?{...JSON.parse(row.payload),revision:row.revision}:{revision:0,workflowEnabled:true,monthlyEnabled:true,hour:9};};
  const cached=id=>{const r=sql.prepare('SELECT * FROM app_messaging_cache WHERE id=?').get(id);return r?{...JSON.parse(r.payload),createdAt:r.created_at}:null;};
@@ -37,12 +39,12 @@ export function applicationMessaging(sql,{env,client,base,appId,demo=false,clock
  async function flush(workspaceId='company'){
   if(flushing||demo)return;flushing=true;try{const {state:s}=await readStore(env.DB,workspaceId,false),c=config();
    if(c.workflowEnabled)for(const e of s.notificationEvents||[])enqueue(s,e,workspaceId);
-   const plan=reminderPlan(s.calendar,clock(),c.hour);if(c.monthlyEnabled&&plan.eligible)for(const recipientId of monthlyRecipients(s,plan))enqueue(s,{id:`monthly:${plan.date}:${recipientId}`,kind:'monthly',recipientId,month:plan.assessmentMonth,date:plan.date,stageTitle:plan.stage.title,stageBody:plan.stage.body,page:plan.stage.page},workspaceId);
+   const summaries=reports.sync(s,workspaceId);if(c.workflowEnabled)for(const e of summaries)enqueue(s,e,workspaceId);if(c.monthlyEnabled)for(const e of reports.scheduled(s,workspaceId,c.hour))enqueue(s,e,workspaceId);
    const old=sql.prepare("SELECT id,first_attempt_at FROM app_message_outbox WHERE status='sending' AND updated_at<?").all(new Date(clock().getTime()-60000).toISOString());
    for(const row of old)sql.prepare('UPDATE app_message_outbox SET status=?,error_code=? WHERE id=?').run(clock().getTime()-Date.parse(row.first_attempt_at)<50*60000?'retry':'unknown','INTERRUPTED',row.id);
    const rows=sql.prepare("SELECT * FROM app_message_outbox WHERE workspace_id=? AND (status='queued' OR (status='retry' AND (next_attempt_at IS NULL OR next_attempt_at<=?))) ORDER BY CASE WHEN kind='monthly' THEN 1 ELSE 0 END,created_at LIMIT 25").all(workspaceId,clock().toISOString());
-   for(const row of rows){const e=JSON.parse(row.payload);if(e.kind==='monthly'&&!c.monthlyEnabled||e.kind!=='monthly'&&e.kind!=='test'&&!c.workflowEnabled)continue;
-    const {state:live}=await readStore(env.DB,workspaceId,false),p=live.people.find(p=>p.id===row.recipient_id&&p.active),livePlan=reminderPlan(live.calendar,clock(),c.hour),expired=e.kind==='monthly'&&(e.date!==livePlan.date||!livePlan.eligible||!monthlyRecipients(live,livePlan).includes(row.recipient_id));
+   for(const row of rows){const e=JSON.parse(row.payload);if(['monthly','cycle_digest'].includes(e.kind)?!c.monthlyEnabled:e.kind!=='test'&&!c.workflowEnabled)continue;
+    const {state:live}=await readStore(env.DB,workspaceId,false),p=live.people.find(p=>p.id===row.recipient_id&&p.active),livePlan=reminderPlan(live.calendar,clock(),c.hour),expired=e.cycleId?!reports.current(live,e,c.hour):e.kind==='monthly'&&(e.date!==livePlan.date||!livePlan.eligible||!monthlyRecipients(live,livePlan).includes(row.recipient_id));
     if(!row.recipient_open_id&&p?.feishuOpenId){sql.prepare('UPDATE app_message_outbox SET recipient_open_id=? WHERE id=? AND recipient_open_id IS NULL').run(p.feishuOpenId,row.id);row.recipient_open_id=p.feishuOpenId;}
     if(!p||!eventCurrent(live,e)||expired||p.feishuOpenId!==row.recipient_open_id){sql.prepare("UPDATE app_message_outbox SET status='cancelled',error_code='NO_LONGER_CURRENT' WHERE id=?").run(row.id);continue;}
     if(row.status==='retry'&&row.first_attempt_at&&clock().getTime()-Date.parse(row.first_attempt_at)>=50*60000){sql.prepare("UPDATE app_message_outbox SET status='unknown',error_code='DEDUPE_WINDOW_EXPIRED' WHERE id=?").run(row.id);continue;}
@@ -55,5 +57,5 @@ export function applicationMessaging(sql,{env,client,base,appId,demo=false,clock
  function kick(key='company'){setImmediate(()=>flush(key).catch(()=>{}));}
  async function test(u,key='company'){ensure(!demo,'演示环境不发送真实消息',409);ensure(u.feishuOpenId,'请先绑定当前管理员飞书账号',409);const recent=sql.prepare("SELECT created_at FROM app_message_outbox WHERE kind='test' ORDER BY created_at DESC LIMIT 1").get();ensure(!recent||clock().getTime()-Date.parse(recent.created_at)>60000,'每分钟最多发送一次测试卡片',429);const {state:s}=await readStore(env.DB,key,false),id='test:'+randomUUID();enqueue(s,{id,kind:'test',recipientId:u.id},key);await flush(key);return receipt(id);}
  function retry(id,confirmed=false){const r=sql.prepare('SELECT * FROM app_message_outbox WHERE id=?').get(id);ensure(r&&['blocked','unknown'].includes(r.status),'记录不可重试',409);ensure(r.status!=='unknown'||confirmed,'请先确认收件人尚未收到，避免重复提醒',409);sql.prepare("UPDATE app_message_outbox SET status='queued',error_code=NULL,first_attempt_at=NULL,next_attempt_at=NULL WHERE id=?").run(id);kick(r.workspace_id);}
- return {status,save,check,directoryPreview,applyDirectory,prepareSubmission,flush,kick,test,retry,decorate,receipt};
+ return {status,save,check,directoryPreview,applyDirectory,prepareSubmission,flush,kick,test,retry,decorate,receipt,reports};
 }
