@@ -15,7 +15,7 @@ import {ACTION_LABELS} from '../lib/action-labels.mjs';
 import {ReminderSettings} from './reminder-settings';
 import {EmployeeHome} from './employee-home';
 import {MonthlyCollaborationAssignments,MonthlyCollaborationReview} from './monthly-collaboration';
-import {monthlyAssessmentsToRate,monthlyReviewersOf} from '../lib/monthly-collaboration.mjs';
+import {monthlyAssessmentsToRate,monthlyReviewersOf,requiredMonthlyReviewers} from '../lib/monthly-collaboration.mjs';
 import {CycleReportPanel} from './cycle-report-panel';
 import {workspaceAccess,workspaceEntry} from '../lib/workspace-access.mjs';
 import {SelfScoreFields,TaskEvaluations,AssessmentSections,RuleSettings,PeoplePanel,BonusInbox} from './form-sections';
@@ -38,7 +38,7 @@ export default function Workspace(){
  const own=d.assessments.find((a:any)=>a.cycleId===cycle&&a.employeeId===u.id);
  const ct=d.tasks.filter((t:any)=>as(t)?.cycleId===cycle),mine=ct.filter((t:any)=>as(t)?.employeeId===u.id),reviews=ct.filter((t:any)=>as(t)?.collaborationMode!=='monthly'&&(reviewersOf(t).includes(u.id)||(!t.cross&&as(t)?.managerId===u.id)));
  const monthlyRatings=monthlyAssessmentsToRate(d,u,cycle),monthlyReview=d.assessments.find((a:any)=>a.id===monthlyReviewId);
- const team=d.assessments.filter((a:any)=>a.cycleId===cycle&&(a.managerId===u.id||a.hrbpId===u.id||admin)),monthlyUnassigned=team.filter((a:any)=>a.status==='active'&&a.collaborationMode==='monthly'&&(a.hrbpId===u.id||admin)&&monthlyReviewersOf(a).length!==2),reviewCount=monthlyRatings.length+reviews.filter((t:any)=>t.status==='submitted').length;
+ const team=d.assessments.filter((a:any)=>a.cycleId===cycle&&(a.managerId===u.id||a.hrbpId===u.id||admin)),monthlyUnassigned=team.filter((a:any)=>a.status==='active'&&a.collaborationMode==='monthly'&&(a.hrbpId===u.id||admin)&&monthlyReviewersOf(a).length!==requiredMonthlyReviewers(a,d.pilot)),reviewCount=monthlyRatings.length+reviews.filter((t:any)=>t.status==='submitted').length;
  let tasks=page==='review'?reviews:page==='team'?ct.filter((t:any)=>team.some((a:any)=>a.id===t.assessmentId)):mine;
  tasks=tasks.filter((t:any)=>(filter==='all'||t.status===filter)&&(t.title+as(t)?.employeeName).includes(query));
  const focused=d.tasks.find((t:any)=>t.id===drawer),fa=focused&&as(focused),rule=d.rules.find((r:any)=>r.id===c?.ruleId);
