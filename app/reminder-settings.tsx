@@ -14,6 +14,7 @@ export function ReminderSettings({data,onPeople}:any){
  return <section className="panel reminder-settings"><div className="panel-heading"><h3>飞书自建应用与个人待办</h3><span className={'badge '+(state?.connection?.ready?'accepted':'planned')}>{state?.connection?.ready?'接入检查通过':'待开通／待检查'}</span></div><div className="setting-bottom">
  <p>员工提交整月绩效后，从飞书通讯录核对直属上级并发送个人评分卡片。月度跨部门评分通知 HRBP 指定的两位评分人；按公司工作日历向当前责任人推送待办，管理员从考核开始每天北京时间17:00统一收到正式考核全员进度、未完成名单与卡点。评分齐全和结果发布时仍自动生成汇总表，管理员完成通知统一放入17:00日报。</p>
  <p className="subtle">应用 ID：{state?.appId||'—'} · 使用服务器已有应用凭证。</p>
+ <p className="subtle">{state?.formalLaunch?.date&&<>正式推送{state.formalLaunch.phase==='scheduled'?'将于':'已于'} {state.formalLaunch.date} 启用，首期考核 {state.formalLaunch.firstAssessmentMonth} 月工作；此前月份不补发。独立测试不受正式启用日期限制。</>}</p>
  {state?.demo&&<p className="notice-inline">演示环境不读取真实通讯录、不发送真实消息。</p>}{message&&<p role="status" className="notice-inline">{message}</p>}
  {state&&<><div className="button-row"><button disabled={busy||state.demo} onClick={()=>action('check')}>检查应用权限与机器人</button><button disabled={busy||state.demo} onClick={()=>action('test')}>发送测试卡片给我</button><button disabled={busy} onClick={load}>刷新接入状态</button></div>
  <details open={!state.connection?.ready}><summary>需要开通的应用能力与权限</summary><p>在飞书自建应用中开启机器人能力，发布应用版本，将应用可用范围和通讯录可读范围设置为实际考核员工及其直属上级。</p>
