@@ -20,7 +20,7 @@ function fixture(){
  const f={s,...Object.fromEntries(s.people.map(p=>[p.id,p]))};
  mutate(s,f.chen,'openCycle',{month:'2026-11'});f.c=s.cycles[0];f.a=s.assessments.find(a=>a.employeeId==='lin');
  for(const [i,weight]of [60,40].entries())mutate(s,f.lin,'createTask',{assessmentId:f.a.id,title:'月度工作'+i,objective:'O1',description:'本月工作任务描述',standard:'明确交付成果与记录',due:'2026-11-30',weight,cross:false});
- f.tasks=s.tasks.filter(t=>t.assessmentId===f.a.id);mutate(s,f.zhou,'approveGoals',{id:f.a.id});mutate(s,f.lin,'confirmGoals',{id:f.a.id});return f;
+ f.tasks=s.tasks.filter(t=>t.assessmentId===f.a.id);return f;
 }
 function assign(f,ids=['xu','he'],extra={}){mutate(f.s,f.hr,'assignMonthlyCollaboration',{assessmentIds:[f.a.id],reviewerIds:ids,...extra});}
 function submit(f){for(const t of f.tasks)if(['planned','returned'].includes(t.status))mutate(f.s,f.lin,'saveTaskSelf',{id:t.id,result:'完整月度员工总结',timeliness:10,quality:10});mutate(f.s,f.lin,'saveQualityCases',{id:f.a.id,cases:values(FORM_TEMPLATE.quality,'本月具体工作事例')});mutate(f.s,f.lin,'submitAssessment',{id:f.a.id});}

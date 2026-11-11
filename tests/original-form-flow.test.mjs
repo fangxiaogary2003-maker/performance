@@ -15,7 +15,7 @@ function fixture(){
  const s=emptyState();s.people=demoState().people;for(const p of s.people)p.feishuOpenId='ou_'+p.id;
  const f={s,...Object.fromEntries(s.people.map(p=>[p.id,p]))};mutate(s,f.chen,'openCycle',{month:'2026-11'});f.c=s.cycles[0];f.a=s.assessments.find(a=>a.employeeId==='lin');
  for(const [i,weight]of [60,40].entries())mutate(s,f.lin,'createTask',{assessmentId:f.a.id,title:'原表工作事项'+i,objective:'O1',description:'工作事项描述',standard:'交付物标准',due:'2026-11-30',weight,cross:false});
- f.tasks=s.tasks.filter(t=>t.assessmentId===f.a.id);mutate(s,f.zhou,'approveGoals',{id:f.a.id});mutate(s,f.lin,'confirmGoals',{id:f.a.id});return f;
+ f.tasks=s.tasks.filter(t=>t.assessmentId===f.a.id);return f;
 }
 function save(f,n=0){for(const t of f.tasks)mutate(f.s,f.lin,'saveTaskSelf',{id:t.id,result:'PRIVATE_SUMMARY_NOT_IN_CARD',timeliness:n,quality:n,remark:''});}
 function cases(f){mutate(f.s,f.lin,'saveQualityCases',{id:f.a.id,cases:vals(FORM_TEMPLATE.quality,'原表中的当月典型事例')});}

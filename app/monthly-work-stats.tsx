@@ -1,0 +1,4 @@
+import React from 'react';
+import {FileText,ClipboardCheck,Clock} from 'lucide-react';
+import {taskSelfComplete} from '../lib/task-self.mjs';
+export function MonthlyWorkStats({tasks,cycle,pendingReviews}:any){const weight=tasks.reduce((n:number,t:any)=>n+t.weight,0);return <div className="stats"><div><span className="stat-label">工作事项<FileText size={17}/></span><b>{tasks.length}<small>项</small></b><p>权重合计 {weight}%</p></div><div><span className="stat-label">待填写工作事项<FileText size={17}/></span><b>{tasks.filter((t:any)=>!taskSelfComplete(t)).length}<small>项</small></b><p>填写员工总结与自评</p></div><div><span className="stat-label">待我跨部门评分<ClipboardCheck size={17}/></span><b>{pendingReviews}<small>项</small></b><p>处理HRBP指定的评分事项</p></div><div><span className="stat-label">考核截止日期<Clock size={17}/></span><b className="date-stat">{cycle?.due?.slice(5).replace('-',' / ')||'—'}</b><p><i className="amber-dot"/>{cycle?.calendarConfirmed?'工作日历已核对':'工作日历待核对'}</p></div></div>;}
