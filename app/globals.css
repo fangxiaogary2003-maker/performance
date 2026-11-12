@@ -549,3 +549,24 @@ body summary{font-size:14px;color:var(--ui-ink);line-height:1.8}
  button,input,select,textarea,.badge,.panel{border:1px solid CanvasText}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid Highlight}
  .sidebar nav button.active{outline:2px solid Highlight;box-shadow:none}.primary{forced-color-adjust:auto}
 }
+
+/* Optional collaboration consent and HRBP review use the existing visual tokens. */
+.collaboration-consent{border:1px solid var(--ui-border);border-radius:var(--ui-radius);margin-top:24px;background:var(--ui-soft);color:var(--ui-ink)}
+.collaboration-consent>summary{cursor:pointer;display:flex;align-items:center;gap:10px;padding:16px;min-height:52px;font-weight:600;list-style:none}
+.collaboration-consent>summary:after{content:'展开';margin-left:auto;color:var(--ui-accent);font-size:13px;flex-shrink:0}.collaboration-consent[open]>summary:after{content:'收起'}
+.collaboration-consent>summary:focus-visible{outline:3px solid var(--ui-accent);outline-offset:3px;border-radius:var(--ui-radius)}
+.consent-status{display:inline-block;margin-left:10px;font-size:12px;font-weight:400;color:var(--ui-muted)}
+.employee-shell .collaboration-consent>summary>span{font-size:14px;color:var(--ui-ink);line-height:1.7}.employee-shell .collaboration-consent .consent-status{font-size:12px;color:var(--ui-muted)}
+.consent-body{padding:0 20px 20px;line-height:1.8;font-size:14px}.consent-body p{color:var(--ui-muted);overflow-wrap:anywhere;margin:8px 0 12px}
+.consent-explanation{padding:16px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-surface);margin:16px 0}.consent-explanation ul{padding-left:20px;margin:8px 0 0;color:var(--ui-muted)}.consent-explanation li+li{margin-top:8px}
+.consent-scope{display:grid;gap:12px;margin-top:16px}.consent-scope>button{justify-self:start}.consent-check{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;color:var(--ui-ink)}
+.consent-check input[type=checkbox]{flex:0 0 18px;width:18px!important;height:18px!important;min-height:18px!important;accent-color:var(--ui-accent);margin:0}
+.consent-groups{max-height:240px;overflow:auto;border:1px solid var(--ui-border);border-radius:8px;padding:12px}.consent-groups legend{color:var(--ui-muted);padding:0 8px}.consent-groups label{overflow-wrap:anywhere}
+.consent-sync{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-top:1px solid var(--ui-border);margin-top:20px}.consent-sync p{margin:4px 0}.consent-sync button{flex-shrink:0}
+.consent-body button{min-height:44px}.consent-body .consent-message{color:var(--ui-accent)}.consent-body .consent-error{color:var(--ui-danger)}
+.consent-revoke{padding:16px;border:1px solid var(--ui-warning-border);border-radius:8px;background:var(--ui-warning-soft);margin-top:12px}
+.recommendation-note{padding:16px 24px;background:var(--ui-soft);border-top:1px solid var(--ui-border);font-size:13px;color:var(--ui-muted);display:flex;gap:16px;align-items:center;flex-wrap:wrap}.recommendation-note p{flex:1;min-width:200px;margin:0;line-height:1.8}
+.recommendation-row{max-width:240px;white-space:normal}.recommendation-row small{line-height:1.7;margin-top:8px;overflow-wrap:anywhere}.recommendation-row button{margin-top:8px;color:var(--ui-accent)}
+.recommendation-review{border:1px solid var(--ui-accent-border);border-radius:8px;background:var(--ui-accent-soft);padding:16px;margin-bottom:24px}.recommendation-review h4{margin:0 0 12px;font-size:16px}.recommendation-review p,.recommendation-review small{color:var(--ui-muted);line-height:1.8}
+.recommendation-candidates{display:grid;gap:12px;margin-top:16px}.recommendation-candidates>div{background:var(--ui-surface);border:1px solid var(--ui-border);padding:12px;border-radius:8px}.recommendation-candidates p{margin:8px 0;font-size:13px;overflow-wrap:anywhere}
+@media(max-width:640px){.consent-body{padding:0 14px 16px;font-size:14px}.consent-explanation{padding:12px}.consent-sync{align-items:stretch;flex-direction:column}.consent-sync button{align-self:flex-start}.consent-scope button{max-width:100%;white-space:normal}.recommendation-note{padding:16px}.recommendation-review{padding:12px}.consent-check{align-items:flex-start;padding:10px 0}.consent-check input[type=checkbox]{margin-top:3px}.consent-scope input:not([type=checkbox]){font-size:16px}}

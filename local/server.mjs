@@ -8,6 +8,9 @@ import {Readable} from 'node:stream';
 import {adapters} from './adapter.mjs';
 import {feishuClient} from './feishu-client.mjs';
 import {applicationMessaging} from './application-messaging.mjs';
+import {collaborationClient} from './collaboration-client.mjs';
+import {collaborationService} from './collaboration-service.mjs';
+import {AppError} from '../lib/errors.mjs';
 import {api,readStore,writeStore,mutate,actorFor,monthNow} from '../lib/performance.mjs';
 import {publicConfig,internalPath,safeReturnTo} from '../lib/app-path.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -18,6 +21,7 @@ if(!demo&&(!base.startsWith('https://')||!process.env.FEISHU_APP_ID||!process.en
 if(demo&&!['127.0.0.1','::1','localhost'].includes(host))throw Error('Demo server must bind to loopback.');
 const env=await adapters(process.env.DATA_DIR||join(root,'data'));
 env.APP_MESSAGING=applicationMessaging(env.sql,{env,client:feishuClient({appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET}),appId:process.env.FEISHU_APP_ID||'演示应用',base,demo});
+env.COLLABORATION=collaborationService(env.sql,{client:collaborationClient({appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET}),appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET,base,demo});
 const rand=()=>randomBytes(32).toString('base64url'),hash=s=>createHash('sha256').update(s).digest('hex');
 const cookies=req=>Object.fromEntries((req.headers.cookie||'').split(';').filter(x=>x.includes('=')).map(x=>{const i=x.indexOf('=');return[x.slice(0,i).trim(),x.slice(i+1)];}));
 const cookie=(name,value,seconds)=>`${name}=${value}; Path=${basePath||'/'}; HttpOnly; SameSite=Lax; Max-Age=${seconds}${demo?'':'; Secure'}`;
@@ -41,6 +45,13 @@ const server=http.createServer(async(req,res)=>{
  const state=rand();env.sql.prepare('DELETE FROM oauth_states WHERE expires<?').run(Date.now());env.sql.prepare('INSERT INTO oauth_states(id,expires,return_to) VALUES(?,?,?)').run(hash(state),Date.now()+600000,safeReturnTo(url.searchParams.get('return_to'),origin,basePath));
  const auth=new URL('https://accounts.feishu.cn/open-apis/authen/v1/authorize');auth.search=new URLSearchParams({client_id:process.env.FEISHU_APP_ID,response_type:'code',redirect_uri:base+'/auth/callback',scope:process.env.FEISHU_SCOPE||'contact:user.base:readonly',state}).toString();redirect(res,auth.href,cookie('oauth_state',state,600));return;}
  if(url.pathname==='/auth/callback'&&!demo){
+ const collaborationState=url.searchParams.get('state');
+ if(env.COLLABORATION.isCallback(collaborationState)){
+  const activeSession=cs.perf_session&&env.sql.prepare('SELECT user_id FROM sessions WHERE id=? AND expires>?').get(hash(cs.perf_session),Date.now());
+  if(!activeSession){send(res,401,'登录已过期，请先重新登录，再从本人绩效表发起协作授权');return;}
+  try{const {state:s}=await readStore(env.DB,'company',false),u=actorFor(s,activeSession.user_id);const target=await env.COLLABORATION.complete(s,u,{state:collaborationState,code:url.searchParams.get('code'),cookieState:cs.collaboration_oauth});redirect(res,target,cookie('collaboration_oauth','',0));}
+  catch(error){res.setHeader('Set-Cookie',cookie('collaboration_oauth','',0));send(res,error instanceof AppError?error.status:502,error instanceof AppError?error.message:'协作授权未完成，请返回绩效表重试');}return;
+ }
  const state=url.searchParams.get('state'),code=url.searchParams.get('code');if(!state||state!==cs.oauth_state||!code){send(res,400,'登录校验失败，请重新登录');return;}
  const stored=env.sql.prepare('DELETE FROM oauth_states WHERE id=? AND expires>? RETURNING id,return_to').get(hash(state),Date.now());if(!stored){send(res,400,'登录请求已失效');return;}
  const tokenResponse=await fetch('https://open.feishu.cn/open-apis/authen/v2/oauth/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grant_type:'authorization_code',client_id:process.env.FEISHU_APP_ID,client_secret:process.env.FEISHU_APP_SECRET,code,redirect_uri:base+'/auth/callback'}),signal:AbortSignal.timeout(15000)});const token=await tokenResponse.json();if(!tokenResponse.ok||!token.access_token){send(res,502,'飞书授权失败，请检查应用配置及授权范围');return;}
@@ -67,5 +78,7 @@ server.requestTimeout=30000;server.headersTimeout=15000;
 server.listen(port,host,()=>{console.log(`绩效工作台 Local: http://${host}:${port} (${demo?'虚构数据演示':'生产飞书登录'})`);});
 let reminding=false;
 async function remind(){if(demo||reminding)return;reminding=true;try{const {state}=await readStore(env.DB,'company',false);await env.APP_MESSAGING.flush('company');for(const row of env.sql.prepare("SELECT id,payload FROM workspaces WHERE id LIKE 'pilot-%'").all()){const pilot=JSON.parse(row.payload);if(pilot.pilotWorkspace?.active===true)await env.APP_MESSAGING.flush(row.id);}}catch(e){console.error('Reminder scheduler:',e.message);}finally{reminding=false;}}
-const timer=setInterval(()=>{tick();remind();},60000);timer.unref();await tick();await remind();
+let collaborationTicking=false;
+async function syncCollaboration(){if(demo||collaborationTicking)return;collaborationTicking=true;try{const {state}=await readStore(env.DB,'company',false);await env.COLLABORATION.tick(state,env.APP_MESSAGING.status(state.calendar).config.formalLaunchDate);}catch{console.error('Collaboration scheduler: sync deferred');}finally{collaborationTicking=false;}}
+const timer=setInterval(()=>{tick();remind();syncCollaboration();},60000);timer.unref();await tick();await remind();
 for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>{clearInterval(timer);server.close(()=>{env.sql.close();process.exit(0);});});

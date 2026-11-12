@@ -1,13 +1,14 @@
 {
-  "application_version": "0.6.12",
+  "application_version": "0.7.0",
   "repository_source_reference": "The repository commit containing this manifest; exact deployed commit is recorded by the runtime deployment manifest.",
-  "tests_passed": 189,
+  "tests_passed": 210,
   "frontend_sha256": {
-    "selfhost/public/app.css": "30c6ea79c994f32319b17a2b3d3d6836c98ac5043cf7af803ea44c3f23aecd78",
-    "selfhost/public/app.js": "b0fba70bc337c1aeb55884acad02c837402a4a21d1bf2d1442af25244aeb3838",
+    "selfhost/public/app.css": "f366266c5db549f5273f425ea4a055c55ae5e84bb560807d93de4612b573941a",
+    "selfhost/public/app.js": "3fd882cb62c40e42116c8ef8bf4e105d325275595a0ff41b7129f57da896d4b3",
     "selfhost/public/index.html": "9e26a6e500067c78012a02498c1fe822da21ee6c9d63f83cf895dc280214024e"
   },
-  "ui_revision": "2026-11-11-minimal-1",
-  "change_scope": "appearance_only",
-  "backup_source_commit": "585f351f395d4782707a44751309c99e6787afa0"
+  "ui_revision": "2026-11-12-collaboration-consent-1",
+  "change_scope": "employee_opt_in_communication_metadata_suggestions_with_hrbp_confirmation",
+  "backup_source_commit": "24b8fd61f86a5ca914edb63e0a0ad223c6b958f3",
+  "backup_branch": "backup/before-collaboration-suggestions-20261112"
 }

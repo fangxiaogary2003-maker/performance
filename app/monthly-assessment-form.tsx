@@ -4,6 +4,7 @@ import {Plus,Save,Send,CheckCircle2,ArrowRight,Trash2} from 'lucide-react';
 import {FORM_TEMPLATE} from '../lib/form-engine.mjs';
 import {monthlyFormRoles,monthlyFormSource,monthlyFormValues} from '../lib/monthly-form.mjs';
 import {qualityEvaluationComplete} from '../lib/quality-review.mjs';
+import {CollaborationConsent} from './collaboration-consent';
 type Any=any;
 const labels:Any={employee:'员工填报',manager:'主管评分',hrbp:'HRBP 评分'};
 const number=(v:string)=>v===''?'':Number(v);
@@ -19,6 +20,7 @@ export function MonthlyAssessmentForm({data,a,mode='employee',onAction,onFile,bu
  <MonthlyFormSheet key={a.id+'-'+kind} data={data} a={a} kind={kind} onAction={onAction} onFile={onFile} busy={busy}/>
  {mode==='employee'&&a.monthlySubmission?.status==='submitted'&&<FormSummary data={data} a={a}/>} {mode!=='employee'&&<FormSummary data={data} a={a}/>} 
  <MonthlyFormExtras data={data} a={a} mode={mode} onAction={onAction} busy={busy}/>
+ {mode==='employee'&&a.employeeId===data.user.id&&data.collaborationAvailable&&<CollaborationConsent data={data} month={data.cycles.find((c:Any)=>c.id===a.cycleId)?.month}/>}
  </div>;
 }
 export function MonthlyFormSheet({data,a,kind,onAction,onFile,busy}:Any){
