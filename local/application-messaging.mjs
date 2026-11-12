@@ -1,5 +1,5 @@
 import {pilotManager,workspaceMessageBase,authorizePilot} from '../lib/pilot-workspace.mjs';
-import {managerQualityEvents} from '../lib/quality-review.mjs';
+import {managerQualityEvents,hrbpQualityEvents} from '../lib/quality-review.mjs';
 import {createHash,randomUUID} from 'node:crypto';
 import {AppError,ensure} from '../lib/errors.mjs';
 import {readStore} from '../lib/performance.mjs';
@@ -42,7 +42,7 @@ export function applicationMessaging(sql,{env,client,base,appId,demo=false,clock
  function decorate(view){for(const a of view.assessments)if(a.monthlySubmission?.eventId)a.submissionNotification=receipt(a.monthlySubmission.eventId);return view;}
  async function flush(workspaceId='company'){
   if(flushing||demo)return;flushing=true;try{const {state:s}=await readStore(env.DB,workspaceId,false),c=config();if(s.pilotWorkspace?.active===false)return;
-   if(c.workflowEnabled){for(const e of s.notificationEvents||[])enqueue(s,e,workspaceId);for(const e of managerQualityEvents(s))enqueue(s,e,workspaceId);}
+   if(c.workflowEnabled){for(const e of s.notificationEvents||[])enqueue(s,e,workspaceId);for(const e of [...managerQualityEvents(s),...hrbpQualityEvents(s)])enqueue(s,e,workspaceId);}
    reports.sync(s,workspaceId);if(c.monthlyEnabled)for(const e of reports.scheduled(s,workspaceId,c.hour))enqueue(s,e,workspaceId);if(c.adminDigestEnabled)for(const e of reports.adminScheduled(s,workspaceId))enqueue(s,e,workspaceId);
    for(const row of sql.prepare("SELECT id,kind,payload FROM app_message_outbox WHERE workspace_id=? AND kind IN ('cycle_summary','cycle_digest') AND status IN ('queued','retry','blocked','unknown','sending')").all(workspaceId))if(row.kind==='cycle_summary'||JSON.parse(row.payload).policyId!==ADMIN_DIGEST_POLICY_ID)sql.prepare("UPDATE app_message_outbox SET status='cancelled',error_code='ADMIN_DAILY_SCHEDULE_CHANGED',updated_at=? WHERE id=?").run(clock().toISOString(),row.id);
    for(const row of sql.prepare("SELECT id,payload FROM app_message_outbox WHERE workspace_id=? AND status IN ('queued','retry','blocked','unknown','sending')").all(workspaceId)){const gate=formalMessageGate(s,JSON.parse(row.payload),workspaceId,c,clock());if(!gate.eligible&&gate.permanent)sql.prepare("UPDATE app_message_outbox SET status='cancelled',error_code=?,updated_at=? WHERE id=?").run(gate.reason,clock().toISOString(),row.id);}

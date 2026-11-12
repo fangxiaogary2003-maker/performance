@@ -1,14 +1,14 @@
 {
-  "application_version": "0.7.1",
+  "application_version": "0.8.0",
   "repository_source_reference": "The repository commit containing this manifest; exact deployed commit is recorded by the runtime deployment manifest.",
-  "tests_passed": 211,
+  "tests_passed": 222,
   "frontend_sha256": {
-    "selfhost/public/app.css": "f366266c5db549f5273f425ea4a055c55ae5e84bb560807d93de4612b573941a",
-    "selfhost/public/app.js": "3fd882cb62c40e42116c8ef8bf4e105d325275595a0ff41b7129f57da896d4b3",
+    "selfhost/public/app.css": "ae6b1e9e908aab18dcc6f41844911dde94b931b9f1d9751129e450fcc634d0a1",
+    "selfhost/public/app.js": "64b6eb5767303a0d347807bac7cb65d663d7af80bfdbac885d28224890ff6782",
     "selfhost/public/index.html": "9e26a6e500067c78012a02498c1fe822da21ee6c9d63f83cf895dc280214024e"
   },
-  "ui_revision": "2026-11-12-collaboration-consent-1",
-  "change_scope": "fix_explicit_timezone_for_feishu_message_search_and_safe_error_codes",
-  "backup_source_commit": "53f14e8d42c8b7ff0a47a5a71ac4681a1819e1e6",
-  "backup_branch": "backup/before-collaboration-timefix-20261112"
+  "ui_revision": "2026-11-12-quality-self-review-1",
+  "change_scope": "employee_quality_self_rating_and_reasons_before_manager_and_hrbp_review",
+  "backup_source_commit": "f190da4547e3b76b33b0193b5574a60abba8e013",
+  "backup_branch": "backup/before-quality-self-review-20261112"
 }
