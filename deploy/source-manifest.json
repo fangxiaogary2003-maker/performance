@@ -1,14 +1,14 @@
 {
-  "application_version": "0.9.0",
+  "application_version": "0.9.1",
   "repository_source_reference": "The repository commit containing this manifest; exact deployed commit is recorded by the runtime deployment manifest.",
-  "tests_passed": 234,
+  "tests_passed": 244,
   "frontend_sha256": {
     "selfhost/public/app.css": "ae6b1e9e908aab18dcc6f41844911dde94b931b9f1d9751129e450fcc634d0a1",
-    "selfhost/public/app.js": "bb6ecbd6b6522e121ecb64418e1c75b4e72c650aa3ea3211a16d8ac0f52e3c46",
+    "selfhost/public/app.js": "c1fcd843ea4902b2f2a9e830e7659c482327869540ef28b03a78ea9603230bf7",
     "selfhost/public/index.html": "9e26a6e500067c78012a02498c1fe822da21ee6c9d63f83cf895dc280214024e"
   },
-  "ui_revision": "2026-11-12-ratings-only-1",
-  "change_scope": "two_module_ratings_only_no_overall_score",
-  "backup_source_commit": "274b65e5b7c77e31c2bd5cd0c995d2389f56366f",
-  "backup_branch": "backup/before-ratings-only-20261112"
+  "ui_revision": "2026-11-12-pilot-collaboration-1",
+  "change_scope": "explicit_pilot_chat_recommendations_with_separate_employee_consent",
+  "backup_source_commit": "0c251c0a8ade65a8384673905f57069ac3d1db97",
+  "backup_branch": "backup/before-pilot-recommendations-20261112"
 }

@@ -9,7 +9,8 @@ import {adapters} from './adapter.mjs';
 import {feishuClient} from './feishu-client.mjs';
 import {applicationMessaging} from './application-messaging.mjs';
 import {collaborationClient} from './collaboration-client.mjs';
-import {collaborationService} from './collaboration-service.mjs';
+import {collaborationContexts} from './collaboration-contexts.mjs';
+import {authorizePilot} from '../lib/pilot-workspace.mjs';
 import {AppError} from '../lib/errors.mjs';
 import {enableRatingsOnly} from '../lib/assessment-scope.mjs';
 import {enableQualitySelfReview} from '../lib/quality-self-review.mjs';
@@ -29,7 +30,7 @@ for(const row of env.sql.prepare('SELECT id,payload,revision FROM workspaces').a
  const selfChanged=enableQualitySelfReview(state,monthlyFormSource),scopeChanged=enableRatingsOnly(state,monthlyFormSource);if(selfChanged||scopeChanged)await writeStore(env.DB,row.id,row.revision,state);
 }
 env.APP_MESSAGING=applicationMessaging(env.sql,{env,client:feishuClient({appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET}),appId:process.env.FEISHU_APP_ID||'演示应用',base,demo});
-env.COLLABORATION=collaborationService(env.sql,{client:collaborationClient({appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET}),appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET,base,demo});
+env.COLLABORATION=collaborationContexts(env.sql,{client:collaborationClient({appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET}),appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET,base,demo});
 const rand=()=>randomBytes(32).toString('base64url'),hash=s=>createHash('sha256').update(s).digest('hex');
 const cookies=req=>Object.fromEntries((req.headers.cookie||'').split(';').filter(x=>x.includes('=')).map(x=>{const i=x.indexOf('=');return[x.slice(0,i).trim(),x.slice(i+1)];}));
 const cookie=(name,value,seconds)=>`${name}=${value}; Path=${basePath||'/'}; HttpOnly; SameSite=Lax; Max-Age=${seconds}${demo?'':'; Secure'}`;
@@ -57,7 +58,7 @@ const server=http.createServer(async(req,res)=>{
  if(env.COLLABORATION.isCallback(collaborationState)){
   const activeSession=cs.perf_session&&env.sql.prepare('SELECT user_id FROM sessions WHERE id=? AND expires>?').get(hash(cs.perf_session),Date.now());
   if(!activeSession){send(res,401,'登录已过期，请先重新登录，再从本人绩效表发起协作授权');return;}
-  try{const {state:s}=await readStore(env.DB,'company',false),u=actorFor(s,activeSession.user_id);const target=await env.COLLABORATION.complete(s,u,{state:collaborationState,code:url.searchParams.get('code'),cookieState:cs.collaboration_oauth});redirect(res,target,cookie('collaboration_oauth','',0));}
+  try{const {state:company}=await readStore(env.DB,'company',false),context=env.COLLABORATION.callbackContext(collaborationState);if(!context)throw new AppError('协作授权请求已失效，请重新发起',400);let s=company,svc=env.COLLABORATION;if(context?.workspaceId!=='company'){const row=env.sql.prepare('SELECT payload FROM workspaces WHERE id=?').get(context?.workspaceId);if(!row)throw new AppError('试跑已结束，请返回绩效系统',409);s=JSON.parse(row.payload);authorizePilot(company,s,activeSession.user_id,context.workspaceId);svc=env.COLLABORATION.forWorkspace(company,s,context.workspaceId);}const u=actorFor(s,activeSession.user_id),target=await svc.complete(s,u,{state:collaborationState,code:url.searchParams.get('code'),cookieState:cs.collaboration_oauth});redirect(res,target,cookie('collaboration_oauth','',0));}
   catch(error){res.setHeader('Set-Cookie',cookie('collaboration_oauth','',0));send(res,error instanceof AppError?error.status:502,error instanceof AppError?error.message:'协作授权未完成，请返回绩效表重试');}return;
  }
  const state=url.searchParams.get('state'),code=url.searchParams.get('code');if(!state||state!==cs.oauth_state||!code){send(res,400,'登录校验失败，请重新登录');return;}
@@ -87,6 +88,6 @@ server.listen(port,host,()=>{console.log(`绩效工作台 Local: http://${host}:
 let reminding=false;
 async function remind(){if(demo||reminding)return;reminding=true;try{const {state}=await readStore(env.DB,'company',false);await env.APP_MESSAGING.flush('company');for(const row of env.sql.prepare("SELECT id,payload FROM workspaces WHERE id LIKE 'pilot-%'").all()){const pilot=JSON.parse(row.payload);if(pilot.pilotWorkspace?.active===true)await env.APP_MESSAGING.flush(row.id);}}catch(e){console.error('Reminder scheduler:',e.message);}finally{reminding=false;}}
 let collaborationTicking=false;
-async function syncCollaboration(){if(demo||collaborationTicking)return;collaborationTicking=true;try{const {state}=await readStore(env.DB,'company',false);await env.COLLABORATION.tick(state,env.APP_MESSAGING.status(state.calendar).config.formalLaunchDate);}catch{console.error('Collaboration scheduler: sync deferred');}finally{collaborationTicking=false;}}
+async function syncCollaboration(){if(demo||collaborationTicking)return;collaborationTicking=true;try{const {state}=await readStore(env.DB,'company',false);await env.COLLABORATION.tick(state,env.APP_MESSAGING.status(state.calendar).config.formalLaunchDate);await env.COLLABORATION.tickPilots();}catch{console.error('Collaboration scheduler: sync deferred');}finally{collaborationTicking=false;}}
 const timer=setInterval(()=>{tick();remind();syncCollaboration();},60000);timer.unref();await tick();await remind();
 for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>{clearInterval(timer);server.close(()=>{env.sql.close();process.exit(0);});});
