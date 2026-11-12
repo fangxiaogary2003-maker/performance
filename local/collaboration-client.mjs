@@ -5,10 +5,12 @@ const chunks=(items,size=50)=>Array.from({length:Math.ceil(items.length/size)},(
 const messageId=item=>item?.meta_data?.message_id||item?.message_id||item?.id;
 const milliseconds=value=>{const n=Number(value);return Number.isFinite(n)?(n<1e12?n*1000:n):Date.parse(value);};
 const localDay=value=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai'}).format(new Date(milliseconds(value)));
+// The search endpoint validates an explicit local offset; canonical UTC Z is rejected.
+const searchTime=value=>new Date(Date.parse(value)+8*3600000).toISOString().slice(0,19)+'+08:00';
 export function collaborationClient({appId,appSecret,transport=fetch,clock=()=>new Date(),maxRequests=200,maxPages=40}={}){
  async function json(url,options={}){
   let response,data;try{response=await transport(url,{...options,redirect:'error',signal:options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000)});data=await response.json();}catch{throw new AppError('飞书连接失败，请稍后重试；已保存的绩效不受影响',502);}
-  if(!response.ok||(data.code!=null&&data.code!==0)||data.error){const error=new AppError('协作信息读取未完成，请检查飞书用户授权及消息权限',502);error.code=String(data.code||data.error||response.status);throw error;}return data;
+  if(!response.ok||(data.code!=null&&data.code!==0)||data.error){const code=String(Number.isInteger(Number(data.code))&&Number(data.code)!==0?Number(data.code):response.status),message=code==='99992402'?'飞书协作信息请求参数未通过校验，请联系管理员':'协作信息读取未完成，请检查飞书用户授权及消息权限';const error=new AppError(message+'（飞书错误码 '+code+'）',502);error.code=code;throw error;}return data;
  }
  async function exchange(code,redirectUri){return json(prefix+'/authen/v2/oauth/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grant_type:'authorization_code',client_id:appId,client_secret:appSecret,code,redirect_uri:redirectUri})});}
  async function refresh(refreshToken){return json(prefix+'/authen/v2/oauth/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grant_type:'refresh_token',client_id:appId,client_secret:appSecret,refresh_token:refreshToken})});}
@@ -22,7 +24,7 @@ export function collaborationClient({appId,appSecret,transport=fetch,clock=()=>n
   async function search(filter,start=window.start,end=window.end,depth=0){
    const found=[],seen=new Set();let page='';
    for(let i=0;i<maxPages;i++){
-    const q=new URLSearchParams({page_size:'50',user_id_type:'open_id',...(page?{page_token:page}:{})}),data=await request('/im/v1/messages/search?'+q,{query:'',filter:{...filter,from_types:['user'],time_range:{start_time:start,end_time:end}}});
+    const q=new URLSearchParams({page_size:'50',user_id_type:'open_id',...(page?{page_token:page}:{})}),data=await request('/im/v1/messages/search?'+q,{query:'',filter:{...filter,from_types:['user'],time_range:{start_time:searchTime(start),end_time:searchTime(end)}}});
     ensure(Array.isArray(data.items)&&typeof data.has_more==='boolean','飞书搜索返回格式未能核对，本次不生成推荐',502);
     if(data.notice){complete=false;warnings.add('飞书返回搜索范围或可见性提示，统计可能不完整。');}
     for(const item of data.items||[])if(messageId(item))found.push(item);
@@ -58,7 +60,7 @@ export function collaborationClient({appId,appSecret,transport=fetch,clock=()=>n
    }
   }catch(error){if(!error.partial)throw error;complete=false;warnings.add(error.message);}
   // Keep counts and calendar dates only. Raw messages, previews, bodies and chat names never leave this function.
-  return {month,complete,warnings:[...warnings],through:window.end,requests,edges:[...edges.values()].map(e=>({...e,days:[...e.days].sort()}))};
+  return {month,complete,warnings:[...warnings],through:new Date(Math.floor(Date.parse(window.end)/1000)*1000).toISOString(),requests,edges:[...edges.values()].map(e=>({...e,days:[...e.days].sort()}))};
  }
  return {exchange,refresh,profile,groups,collect};
 }
