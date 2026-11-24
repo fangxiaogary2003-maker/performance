@@ -12,7 +12,7 @@ import {collaborationClient} from './collaboration-client.mjs';
 import {collaborationContexts} from './collaboration-contexts.mjs';
 import {authorizePilot} from '../lib/pilot-workspace.mjs';
 import {AppError} from '../lib/errors.mjs';
-import {enableRatingsOnly} from '../lib/assessment-scope.mjs';
+import {enableHrbpOkr} from '../lib/assessment-scope.mjs';
 import {enableQualitySelfReview} from '../lib/quality-self-review.mjs';
 import {monthlyFormSource} from '../lib/monthly-form.mjs';
 import {api,readStore,writeStore,mutate,actorFor,monthNow} from '../lib/performance.mjs';
@@ -27,7 +27,7 @@ const env=await adapters(process.env.DATA_DIR||join(root,'data'));
 await readStore(env.DB,demo?'demo':'company',demo);
 for(const row of env.sql.prepare('SELECT id,payload,revision FROM workspaces').all()){
  const state=JSON.parse(row.payload);if(row.id!==(demo?'demo':'company')&&state.pilotWorkspace?.active!==true)continue;
- const selfChanged=enableQualitySelfReview(state,monthlyFormSource),scopeChanged=enableRatingsOnly(state,monthlyFormSource);if(selfChanged||scopeChanged)await writeStore(env.DB,row.id,row.revision,state);
+ const selfChanged=enableQualitySelfReview(state,monthlyFormSource),scopeChanged=enableHrbpOkr(state,monthlyFormSource);if(selfChanged||scopeChanged)await writeStore(env.DB,row.id,row.revision,state);
 }
 env.APP_MESSAGING=applicationMessaging(env.sql,{env,client:feishuClient({appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET}),appId:process.env.FEISHU_APP_ID||'演示应用',base,demo});
 env.COLLABORATION=collaborationContexts(env.sql,{client:collaborationClient({appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET}),appId:process.env.FEISHU_APP_ID,appSecret:process.env.FEISHU_APP_SECRET,base,demo});

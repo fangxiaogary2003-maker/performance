@@ -1,0 +1,6 @@
+'use client';
+import React,{useState} from 'react';
+export function HrbpOkrEntry({data,a,onAction,busy}:any){
+ const entry=a.hrbpOkrEvaluation,[score,S]=useState<any>(entry?.score??''),[comment,C]=useState(entry?.comment||''),canEdit=a.status==='active'&&a.hrbpId===data.user.id;
+ return <section className="sheet-section hrbp-okr-entry" aria-label="HRBP录入OKR分数"><div className="sheet-section-title"><div><h4>工作事项 · OKR 得分</h4><p>由本单 HRBP 直接录入0—100分。员工无需填写工作任务或提交成果。</p></div><span>{entry?'已录入 '+entry.score+' / 100':'待 HRBP 录入'}</span></div>{canEdit?<form onSubmit={async e=>{e.preventDefault();await onAction('saveHrbpOkr',{id:a.id,score,comment},false);}}><div className="form-grid"><label className="sheet-field">OKR得分（0—100）<input aria-label="OKR得分（0—100）" type="number" required min="0" max="100" step="0.01" value={score} onChange={e=>S(e.target.value===''?'':Number(e.target.value))} disabled={busy}/></label><label className="sheet-field">评分说明（选填）<input maxLength={3000} value={comment} onChange={e=>C(e.target.value)} disabled={busy}/></label></div><p className="subtle">沿用生效方案权重及模块门槛。保存后系统自动换算，不需要另填分项任务评分。</p><button className="primary" disabled={busy}>保存OKR得分</button></form>:<p>OKR得分：{entry?entry.score+' / 100':'等待本单HRBP录入'}</p>}</section>;
+}

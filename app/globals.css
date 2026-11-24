@@ -575,3 +575,11 @@ body summary{font-size:14px;color:var(--ui-ink);line-height:1.8}
 .quality-sheet-table .sheet-field input[type=number]{min-width:88px}
 
 @media(min-width:641px){.quality-sheet-table.has-self-review thead th:nth-child(1){width:32%}.quality-sheet-table.has-self-review thead th:nth-child(2){width:18%}.quality-sheet-table.has-self-review thead th:nth-child(3){width:50%}.quality-sheet-table.has-self-review.review-quality thead th:nth-child(1){width:30%}.quality-sheet-table.has-self-review.review-quality thead th:nth-child(2){width:14%}.quality-sheet-table.has-self-review.review-quality thead th:nth-child(3){width:38%}.quality-sheet-table.has-self-review.review-quality thead th:nth-child(4){width:18%}}
+
+/* Scoring instructions remain visible beside each score, including on mobile. */
+.rating-bands{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:6px}
+.rating-bands li{font-size:14px;line-height:1.65;color:var(--ui-ink);background:var(--ui-surface-soft,#f5f8f8);border:1px solid var(--ui-line,#dce6e4);border-radius:6px;padding:7px 10px;overflow-wrap:anywhere}
+.monthly-review-modal .dimension-row{align-items:flex-start;gap:20px}.monthly-review-modal .dimension-row>label{padding-top:5px;flex-shrink:0}
+.hrbp-okr-entry{margin-bottom:20px;padding:18px;border:1px solid var(--ui-line,#dce6e4);border-radius:10px;background:#f8fbfa}.hrbp-okr-entry input{min-height:44px}
+.nudge-dialog{width:620px}.nudge-people{display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow:auto;margin:16px 0}.nudge-people span{padding:7px 10px;border:1px solid var(--ui-line,#dce6e4);border-radius:6px;line-height:1.5}.nudge-feedback{font-size:13px;line-height:1.6;max-width:400px}
+@media(max-width:600px){.monthly-review-modal .dimension-row{flex-direction:column;align-items:stretch}.monthly-review-modal .dimension-row>label{justify-content:flex-end}.rating-bands li{font-size:14px}.hrbp-okr-entry .form-grid{grid-template-columns:1fr}.nudge-dialog{width:100%}}

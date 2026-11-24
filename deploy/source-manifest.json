@@ -1,14 +1,14 @@
 {
-  "application_version": "0.9.1",
+  "application_version": "0.10.0",
   "repository_source_reference": "The repository commit containing this manifest; exact deployed commit is recorded by the runtime deployment manifest.",
-  "tests_passed": 244,
+  "tests_passed": 256,
   "frontend_sha256": {
-    "selfhost/public/app.css": "ae6b1e9e908aab18dcc6f41844911dde94b931b9f1d9751129e450fcc634d0a1",
-    "selfhost/public/app.js": "c1fcd843ea4902b2f2a9e830e7659c482327869540ef28b03a78ea9603230bf7",
+    "selfhost/public/app.css": "9893918bd0bd250f01534e82c1efeb59d1bbc8f6d9040dc8ee6747dca12138f9",
+    "selfhost/public/app.js": "f1add6f699238b0f5befb10608bf88e7b84e92ef8fdeedb8e90d8f51ce0df2f5",
     "selfhost/public/index.html": "9e26a6e500067c78012a02498c1fe822da21ee6c9d63f83cf895dc280214024e"
   },
-  "ui_revision": "2026-11-12-pilot-collaboration-1",
-  "change_scope": "explicit_pilot_chat_recommendations_with_separate_employee_consent",
-  "backup_source_commit": "0c251c0a8ade65a8384673905f57069ac3d1db97",
-  "backup_branch": "backup/before-pilot-recommendations-20261112"
+  "ui_revision": "2026-11-24-hrbp-okr-nudges-1",
+  "change_scope": "hrbp_direct_okr_original_formula_manual_employee_nudges_visible_rating_bands",
+  "backup_source_commit": "6185ad259af015f3cc0d049756c029fa59ac1337",
+  "backup_branch": "backup/before-hrbp-okr-nudges-20261124"
 }
