@@ -1,14 +1,14 @@
 {
-  "application_version": "0.10.1",
+  "application_version": "0.10.2",
   "repository_source_reference": "The repository commit containing this manifest; exact deployed commit is recorded by the runtime deployment manifest.",
-  "tests_passed": 263,
+  "tests_passed": 270,
   "frontend_sha256": {
     "selfhost/public/app.css": "5f2a397e92cb2b6d1fce46b62b227f5fd51fd764b058b9f34c0c04214cddedce",
-    "selfhost/public/app.js": "83006ec1b21627d452c32a77ab5a8813582f53e26969adc21fb3c1d21ab24077",
+    "selfhost/public/app.js": "61e3e9310715b734f7b9a5e9e790507612ca49bcc3dacf6b3bd15dfa666cb0cc",
     "selfhost/public/index.html": "9e26a6e500067c78012a02498c1fe822da21ee6c9d63f83cf895dc280214024e"
   },
-  "ui_revision": "2026-11-25-okr-record-isolation-1",
-  "change_scope": "okr_editor_record_isolation_context_version_checks_formal_pilot_labels",
-  "backup_source_commit": "6019698f5c33d95c1f79104cb9c19d27ada0c416",
-  "backup_branch": "backup/before-okr-scope-fix-20261125"
+  "ui_revision": "2026-11-25-personal-summary-export-1",
+  "change_scope": "personal_excel_monthly_summary_format_only",
+  "backup_source_commit": "29bc6bb0cacc6dd8b3382dc33068e81cf66779d5",
+  "backup_branch": "backup/before-excel-report-fix-20261125"
 }
