@@ -1,0 +1,4 @@
+'use client';
+import React from 'react';
+import {appPath} from '../lib/app-path.mjs';
+export function AssessmentContext({data,a}:any){const month=data.cycles.find((c:any)=>c.id===a.cycleId)?.month||'',trials=(data.pilotEntries||[]).filter((p:any)=>p.employeeId===a.employeeId&&p.month===month);return <div className={'assessment-context '+(data.pilot?'is-test':'is-formal')} aria-label="当前考核单"><b>{data.pilot?'独立流程测试':'正式考核'} · {a.employeeName} · {month} 工作</b>{data.pilot?<p>{data.pilot.title} · 编号 {a.id.slice(0,8)}</p>:trials.length>0&&<div><span>此员工另有进行中的独立测试：</span>{trials.map((p:any)=>{const query=new URLSearchParams({pilot:p.workspaceId,month:p.month,page:'team',assessmentId:p.assessmentId});return <a key={p.workspaceId} href={appPath('/')+'?'+query}>{p.title} · 打开测试单评分</a>;})}</div>}</div>;}
