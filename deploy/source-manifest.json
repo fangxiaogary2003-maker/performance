@@ -1,14 +1,14 @@
 {
-  "application_version": "0.10.2",
+  "application_version": "0.10.3",
   "repository_source_reference": "The repository commit containing this manifest; exact deployed commit is recorded by the runtime deployment manifest.",
-  "tests_passed": 270,
+  "tests_passed": 277,
   "frontend_sha256": {
     "selfhost/public/app.css": "5f2a397e92cb2b6d1fce46b62b227f5fd51fd764b058b9f34c0c04214cddedce",
-    "selfhost/public/app.js": "61e3e9310715b734f7b9a5e9e790507612ca49bcc3dacf6b3bd15dfa666cb0cc",
+    "selfhost/public/app.js": "d92a70db35b04e77b2acaec743cf513f077e5ec15e1f81356f952326a0e63dd3",
     "selfhost/public/index.html": "9e26a6e500067c78012a02498c1fe822da21ee6c9d63f83cf895dc280214024e"
   },
-  "ui_revision": "2026-11-25-personal-summary-export-1",
-  "change_scope": "personal_excel_monthly_summary_format_only",
-  "backup_source_commit": "29bc6bb0cacc6dd8b3382dc33068e81cf66779d5",
-  "backup_branch": "backup/before-excel-report-fix-20261125"
+  "ui_revision": "2026-11-25-monthly-third-day-1",
+  "change_scope": "monthly_invitation_and_digest_begin_on_third_calendar_day",
+  "backup_source_commit": "cebb6f8af3ba7f183d399017fd6e096a8791875a",
+  "backup_branch": "backup/before-monthly-third-day-20261125"
 }

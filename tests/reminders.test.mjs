@@ -10,7 +10,7 @@ import {api,readStore,writeStore,demoState} from '../lib/performance.mjs';
 const url='https://open.feishu.cn/open-apis/bot/v2/hook/11111111-2222-3333-4444-555555555555';
 const config={configRevision:0,groupName:'全员测试群',hour:9,enabled:true,atAll:true,webhook:url,signSecret:'test-signing-secret'};
 function fixture(transport=async()=>Response.json({code:0}),extra={}){
- const sql=new DatabaseSync(':memory:');let date=new Date('2026-11-02T01:00:00Z');const options={keySecret:'test-only-master-key',base:'https://example.test/performance/',transport,clock:()=>date,...extra},service=groupReminders(sql,options);service.save({...config},'admin');return {sql,service,options,setDate:d=>date=new Date(d)};
+ const sql=new DatabaseSync(':memory:');let date=new Date('2026-11-03T01:00:00Z');const options={keySecret:'test-only-master-key',base:'https://example.test/performance/',transport,clock:()=>date,...extra},service=groupReminders(sql,options);service.save({...config},'admin');return {sql,service,options,setDate:d=>date=new Date(d)};
 }
 test('前5个工作日覆盖节假日、调休周末，不能硬编码每月1—7日',()=>{
  assert.deepEqual(firstWorkdays('2026-11'),['2026-11-02','2026-11-03','2026-11-04','2026-11-05','2026-11-06']);
@@ -19,16 +19,16 @@ test('前5个工作日覆盖节假日、调休周末，不能硬编码每月1—
  assert.equal(previousMonth('2027-01'),'2026-12');
 });
 test('北京时间整点、前5工作日及晚间窗口外均不补发过期提醒',()=>{
- assert.equal(reminderPlan({},new Date('2026-11-02T00:59:59Z')).eligible,false);
- assert.equal(reminderPlan({},new Date('2026-11-02T01:00:00Z')).stage.day,1);
+ assert.equal(reminderPlan({},new Date('2026-11-03T00:59:59Z')).eligible,false);
+ assert.equal(reminderPlan({},new Date('2026-11-03T01:00:00Z')).stage.day,1);
  assert.equal(reminderPlan({},new Date('2026-11-06T01:00:00Z')).stage.day,5);
- assert.equal(reminderPlan({},new Date('2026-11-02T10:00:00Z')).eligible,false);
+ assert.equal(reminderPlan({},new Date('2026-11-03T10:00:00Z')).eligible,false);
  assert.equal(reminderPlan({},new Date('2026-11-07T01:00:00Z')).eligible,false);
  assert.equal(reminderPlan({},new Date('2026-11-09T01:00:00Z')).eligible,false);
  assert.equal(reminderPlan({},new Date('2026-12-31T16:00:00Z')).assessmentMonth,'2026-12');
 });
 test('群卡片只含流程事项与上月入口，测试不会@所有人',()=>{
- const p=reminderPlan({},new Date('2026-11-02T01:00:00Z')),card=reminderCard(p,'https://example.test/performance/',{atAll:true});
+ const p=reminderPlan({},new Date('2026-11-03T01:00:00Z')),card=reminderCard(p,'https://example.test/performance/',{atAll:true});
  assert(card.card.elements[0].text.content.includes('<at id=all>'));assert(card.card.elements[0].text.content.includes('2026-11-06'));
  const link=new URL(card.card.elements[1].actions[0].url);assert.equal(link.pathname,'/performance/');assert.equal(link.searchParams.get('month'),'2026-10');assert.equal(link.searchParams.get('page'),'mine');
  assert(!JSON.stringify(card).includes('employeeId'));
@@ -55,27 +55,27 @@ test('只向飞书官方Webhook发送，拒绝内网、带凭证、重定向和�
 test('同一天并发触发与服务重启不会重复群发',async()=>{
  let calls=0,body;const f=fixture(async(u,opts)=>{calls++;body=JSON.parse(opts.body);assert.equal(opts.redirect,'error');return Response.json({code:0});});try{
  const results=await Promise.all([f.service.tick({}),f.service.tick({})]);assert.equal(calls,1);assert(results.some(x=>x.sent));
- const restarted=groupReminders(f.sql,f.options);assert.equal((await restarted.tick({})).sent,false);assert.equal(calls,1);assert.equal(body.timestamp,String(Date.parse('2026-11-02T01:00:00Z')/1000));assert(body.sign);
+ const restarted=groupReminders(f.sql,f.options);assert.equal((await restarted.tick({})).sent,false);assert.equal(calls,1);assert.equal(body.timestamp,String(Date.parse('2026-11-03T01:00:00Z')/1000));assert(body.sign);
  assert.equal(f.service.status().delivery[0].status,'sent');
  }finally{f.sql.close();}
 });
 test('网络结果不确定不自动重试，确认群未收到才允许重发',async()=>{
  let calls=0;const f=fixture(async()=>{if(++calls===1)throw Error('network error includes secret endpoint');return Response.json({code:0});});try{
  assert.equal((await f.service.tick({})).status,'unknown');await f.service.tick({});assert.equal(calls,1);
- await assert.rejects(()=>f.service.retry('monthly:2026-11-02',{},false),/确认未收到/);
- assert.equal((await f.service.retry('monthly:2026-11-02',{},true)).sent,true);assert.equal(calls,2);
+ await assert.rejects(()=>f.service.retry('monthly:2026-11-03',{},false),/确认未收到/);
+ assert.equal((await f.service.retry('monthly:2026-11-03',{},true)).sent,true);assert.equal(calls,2);
  assert(!JSON.stringify(f.service.status()).includes('secret endpoint'));
  }finally{f.sql.close();}
 });
 test('飞书明确拒绝会记录错误码，修复配置后可手工重试当天提醒',async()=>{
  let calls=0;const f=fixture(async()=>Response.json(++calls===1?{code:19021,msg:'sign fail'}:{code:0}));try{
  assert.equal((await f.service.tick({})).errorCode,'19021');await f.service.tick({});assert.equal(calls,1);
- assert.equal((await f.service.retry('monthly:2026-11-02',{})).sent,true);
- f.setDate('2026-11-03T01:00:00Z');await assert.rejects(()=>f.service.retry('monthly:2026-11-02',{}),/当天/);
+ assert.equal((await f.service.retry('monthly:2026-11-03',{})).sent,true);
+ f.setDate('2026-11-04T01:00:00Z');await assert.rejects(()=>f.service.retry('monthly:2026-11-03',{}),/当天/);
  }finally{f.sql.close();}
 });
 test('进程在发送中退出后保留待核对状态，演示环境不会发真实群消息',async()=>{
- const f=fixture();try{f.sql.prepare("INSERT INTO reminder_outbox(id,date,stage,status,created_at,updated_at,config_revision) VALUES(?,?,?,'sending',?,?,1)").run('monthly:2026-11-02','2026-11-02','1','2026-11-02T00:50:00Z','2026-11-02T00:50:00Z');
+ const f=fixture();try{f.sql.prepare("INSERT INTO reminder_outbox(id,date,stage,status,created_at,updated_at,config_revision) VALUES(?,?,?,'sending',?,?,1)").run('monthly:2026-11-03','2026-11-03','1','2026-11-03T00:50:00Z','2026-11-03T00:50:00Z');
  assert.equal((await f.service.tick({})).sent,false);assert.equal(f.service.status().delivery[0].status,'unknown');
  const demo=groupReminders(f.sql,{...f.options,demo:true});assert.equal((await demo.tick({})).sent,false);await assert.rejects(()=>demo.test({}),/演示环境/);
  }finally{f.sql.close();}
